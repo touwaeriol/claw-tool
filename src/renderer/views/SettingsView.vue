@@ -3,7 +3,7 @@
  * 系统设置页面
  * 使用 el-tabs 组织：外观、系统行为、网络代理、更新设置、日志配置、远程测试、配置文件、关于
  */
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '../stores/app.js'
 import { useConfigStore } from '../stores/config.js'
@@ -127,12 +127,26 @@ const settings = ref({
   remoteTestToken: '',
 })
 
-/* 更新设置 */
+/* 更新设置（从后端读取持久化值） */
 const updateSettings = ref({
   autoCheckOpenClaw: true,
   autoCheckApp: true,
   checkFrequency: 'daily',
   updateChannel: 'stable',
+})
+
+// 加载后端持久化的更新设置
+if (appUpdater?.getUpdateSettings) {
+  const saved = appUpdater.getUpdateSettings()
+  updateSettings.value.autoCheckApp = saved.autoCheckApp
+  updateSettings.value.checkFrequency = saved.checkFrequency
+}
+
+// 监听更新设置变更，同步到后端
+watch(() => [updateSettings.value.autoCheckApp, updateSettings.value.checkFrequency], ([autoCheck, freq]) => {
+  if (appUpdater?.updateSettings) {
+    appUpdater.updateSettings({ autoCheckApp: autoCheck, checkFrequency: freq })
+  }
 })
 
 /* 检查频率选项 */
@@ -396,6 +410,61 @@ function skipThisVersion() {
 function openProjectLink() {
   openExternal('https://github.com/nicepkg/openclaw')
 }
+
+/* 监听主进程自动检查到的更新事件 */
+const eventBus = backend?.eventBus ?? null
+let _updateListener = null
+
+onMounted(() => {
+  if (eventBus && appUpdater?.AppUpdateEvents) {
+    _updateListener = (data) => {
+      appUpdateInfo.value = {
+        hasUpdate: true,
+        currentVersion: data.currentVersion,
+        latestVersion: data.latestVersion,
+        releaseNotes: data.releaseNotes,
+        asset: data.asset,
+      }
+    }
+    eventBus.on(appUpdater.AppUpdateEvents.APP_UPDATE_AVAILABLE, _updateListener)
+  }
+
+  // 如果后端已有缓存的检查结果，直接读取
+  if (appUpdater?.getCachedRelease) {
+    const cached = appUpdater.getCachedRelease()
+    if (cached.release && cached.lastCheckTime > 0) {
+      const currentVersion = appUpdater.getCurrentAppVersion()
+      const tag = cached.release.tag_name
+      const latestVersion = tag ? tag.replace(/^v/, '') : null
+      if (latestVersion && appUpdater.findPlatformAsset) {
+        const asset = appUpdater.findPlatformAsset(cached.release)
+        // 简单比较版本号
+        const c = currentVersion.split('.').map(Number)
+        const l = latestVersion.split('.').map(Number)
+        let isNewer = false
+        for (let i = 0; i < 3; i++) {
+          if ((l[i] || 0) > (c[i] || 0)) { isNewer = true; break }
+          if ((l[i] || 0) < (c[i] || 0)) break
+        }
+        if (isNewer) {
+          appUpdateInfo.value = {
+            hasUpdate: true,
+            currentVersion,
+            latestVersion,
+            releaseNotes: cached.release.body || '',
+            asset,
+          }
+        }
+      }
+    }
+  }
+})
+
+onUnmounted(() => {
+  if (eventBus && _updateListener && appUpdater?.AppUpdateEvents) {
+    eventBus.off(appUpdater.AppUpdateEvents.APP_UPDATE_AVAILABLE, _updateListener)
+  }
+})
 </script>
 
 <template>

@@ -9,7 +9,7 @@ const { processManager } = require('./process-manager')
 const { localExecutor } = require('../executor/executor-factory')
 const { eventBus, Events } = require('../shared/ipc')
 const { loadProxyConfig } = require('./proxy-manager')
-const { checkForAppUpdate, AppUpdateEvents } = require('./updater-app')
+const { startAutoCheck: startAppAutoCheck } = require('./updater-app')
 const { startAutoCheck: startOpenClawAutoCheck } = require('./updater-openclaw')
 
 // 等待 NW.js 窗口就绪后初始化
@@ -33,14 +33,8 @@ function init() {
   // 启动 OpenClaw 自动版本检查
   startOpenClawAutoCheck(() => localExecutor)
 
-  // 延迟 10 秒后检查应用自身更新
-  setTimeout(async () => {
-    try {
-      await checkForAppUpdate()
-    } catch (err) {
-      console.warn('[主进程] 检查应用更新失败:', err.message)
-    }
-  }, 10000)
+  // 启动应用自动更新检查（根据用户设置的频率）
+  startAppAutoCheck()
 
   // 监听托盘菜单的 Gateway 操作
   eventBus.on('tray:start-gateway', async () => {

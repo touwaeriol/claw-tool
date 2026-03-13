@@ -28,11 +28,60 @@ const AppUpdateEvents = {
   APP_UPDATE_ERROR: 'app:update-error',
 }
 
-// 跳过的版本（用户选择"跳过此版本"）
+// 跳过的版本（用户选择"跳过此版本"），持久化到文件
 let skippedVersion = null
 // 缓存的检查结果
 let cachedRelease = null
 let lastCheckTime = 0
+// 自动检查定时器
+let autoCheckTimer = null
+// 更新设置
+let _updateSettings = {
+  autoCheckApp: true,
+  checkFrequency: 'daily', // startup | daily | weekly | monthly
+}
+
+/**
+ * 获取持久化配置文件路径
+ */
+function getSettingsPath() {
+  return path.join(os.homedir(), '.claw-tool', 'update-settings.json')
+}
+
+/**
+ * 加载持久化设置（skippedVersion + 更新偏好）
+ */
+function loadSettings() {
+  try {
+    const settingsPath = getSettingsPath()
+    if (fs.existsSync(settingsPath)) {
+      const data = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'))
+      if (data.skippedVersion) skippedVersion = data.skippedVersion
+      if (data.lastCheckTime) lastCheckTime = data.lastCheckTime
+      if (data.autoCheckApp !== undefined) _updateSettings.autoCheckApp = data.autoCheckApp
+      if (data.checkFrequency) _updateSettings.checkFrequency = data.checkFrequency
+    }
+  } catch { /* 首次运行无文件 */ }
+}
+
+/**
+ * 保存持久化设置
+ */
+function saveSettings() {
+  try {
+    const dir = path.dirname(getSettingsPath())
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    fs.writeFileSync(getSettingsPath(), JSON.stringify({
+      skippedVersion,
+      lastCheckTime,
+      autoCheckApp: _updateSettings.autoCheckApp,
+      checkFrequency: _updateSettings.checkFrequency,
+    }, null, 2), 'utf-8')
+  } catch { /* 忽略写入失败 */ }
+}
+
+// 启动时加载设置
+loadSettings()
 
 /**
  * 获取当前应用版本（从 package.json）
@@ -49,7 +98,7 @@ function getCurrentAppVersion() {
 }
 
 /**
- * 发送 HTTPS 请求（支持代理）
+ * 发送 HTTPS 请求（支持 HTTP 代理 CONNECT 隧道）
  * @param {string} url - 请求 URL
  * @param {object} [options] - 请求选项
  * @returns {Promise<{statusCode: number, headers: object, body: string}>}
@@ -57,45 +106,90 @@ function getCurrentAppVersion() {
 function httpsGet(url, options = {}) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url)
-    const reqOptions = {
-      hostname: parsed.hostname,
-      port: parsed.port || 443,
-      path: parsed.pathname + parsed.search,
-      method: 'GET',
-      headers: {
-        'User-Agent': `claw-tool/${getCurrentAppVersion()}`,
-        'Accept': 'application/vnd.github.v3+json',
-        ...options.headers,
-      },
-      timeout: options.timeout || 15000,
+    const headers = {
+      'User-Agent': `claw-tool/${getCurrentAppVersion()}`,
+      'Accept': 'application/vnd.github.v3+json',
+      ...options.headers,
     }
+    const timeout = options.timeout || 15000
 
-    const req = https.request(reqOptions, (res) => {
-      // 处理重定向
+    // 检查代理配置
+    let proxyUrl = null
+    try {
+      const proxyManager = require('./proxy-manager')
+      proxyUrl = proxyManager.buildProxyUrl()
+    } catch { /* 代理模块不可用 */ }
+
+    function handleResponse(res) {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         httpsGet(res.headers.location, options).then(resolve).catch(reject)
         return
       }
-
       let body = ''
       res.on('data', (chunk) => { body += chunk })
-      res.on('end', () => {
-        resolve({
-          statusCode: res.statusCode,
-          headers: res.headers,
-          body,
-        })
+      res.on('end', () => resolve({ statusCode: res.statusCode, headers: res.headers, body }))
+    }
+
+    if (proxyUrl && (proxyUrl.startsWith('http://') || proxyUrl.startsWith('https://'))) {
+      // 通过 HTTP CONNECT 代理隧道
+      const proxyParsed = new URL(proxyUrl)
+      const connectHeaders = {}
+      if (proxyParsed.username) {
+        connectHeaders['Proxy-Authorization'] = 'Basic ' + Buffer.from(
+          `${decodeURIComponent(proxyParsed.username)}:${decodeURIComponent(proxyParsed.password || '')}`
+        ).toString('base64')
+      }
+      const connectReq = http.request({
+        host: proxyParsed.hostname,
+        port: parseInt(proxyParsed.port),
+        method: 'CONNECT',
+        path: `${parsed.hostname}:${parsed.port || 443}`,
+        headers: connectHeaders,
+        timeout,
       })
-    })
-
-    req.on('timeout', () => {
-      req.destroy()
-      reject(new Error('请求超时'))
-    })
-
-    req.on('error', reject)
-    req.end()
+      connectReq.on('connect', (res, socket) => {
+        if (res.statusCode !== 200) {
+          reject(new Error(`代理 CONNECT 失败: ${res.statusCode}`))
+          return
+        }
+        const req = https.request({
+          socket,
+          hostname: parsed.hostname,
+          path: parsed.pathname + parsed.search,
+          method: 'GET',
+          headers,
+          servername: parsed.hostname,
+          timeout,
+        }, handleResponse)
+        req.on('timeout', () => { req.destroy(); reject(new Error('请求超时')) })
+        req.on('error', reject)
+        req.end()
+      })
+      connectReq.on('timeout', () => { connectReq.destroy(); reject(new Error('代理连接超时')) })
+      connectReq.on('error', (err) => {
+        // 代理失败时回退直连
+        console.warn('[应用更新] 代理连接失败，尝试直连:', err.message)
+        directRequest(parsed, headers, timeout, handleResponse, resolve, reject)
+      })
+      connectReq.end()
+    } else {
+      directRequest(parsed, headers, timeout, handleResponse, resolve, reject)
+    }
   })
+}
+
+function directRequest(parsed, headers, timeout, handleResponse, resolve, reject) {
+  const req = https.request({
+    hostname: parsed.hostname,
+    port: parsed.port || 443,
+    path: parsed.pathname + parsed.search,
+    method: 'GET',
+    headers,
+    timeout,
+  }, handleResponse)
+  req.on('timeout', () => { req.destroy(); reject(new Error('请求超时')) })
+  req.on('error', reject)
+  req.end()
 }
 
 /**
@@ -115,6 +209,7 @@ async function checkLatestRelease() {
     const release = JSON.parse(response.body)
     cachedRelease = release
     lastCheckTime = Date.now()
+    saveSettings()
     return release
   } catch (err) {
     console.warn('[应用更新] 检查更新失败:', err.message)
@@ -338,11 +433,12 @@ function launchInstaller(filePath) {
 }
 
 /**
- * 跳过指定版本
+ * 跳过指定版本（持久化）
  * @param {string} version - 要跳过的版本号
  */
 function skipVersion(version) {
   skippedVersion = version
+  saveSettings()
 }
 
 /**
@@ -355,6 +451,89 @@ function getCachedRelease() {
   }
 }
 
+/**
+ * 根据检查频率获取间隔毫秒数
+ */
+function getCheckIntervalMs(freq) {
+  switch (freq) {
+    case 'startup': return 0  // 仅启动时
+    case 'daily': return 24 * 60 * 60 * 1000
+    case 'weekly': return 7 * 24 * 60 * 60 * 1000
+    case 'monthly': return 30 * 24 * 60 * 60 * 1000
+    default: return 24 * 60 * 60 * 1000
+  }
+}
+
+/**
+ * 判断是否需要检查（基于上次检查时间和频率）
+ */
+function shouldCheck() {
+  if (!_updateSettings.autoCheckApp) return false
+  if (_updateSettings.checkFrequency === 'startup') return lastCheckTime === 0
+  const interval = getCheckIntervalMs(_updateSettings.checkFrequency)
+  return Date.now() - lastCheckTime >= interval
+}
+
+/**
+ * 启动自动检查定时器
+ * 启动后 10 秒执行首次检查，之后按频率轮询
+ */
+function startAutoCheck() {
+  stopAutoCheck()
+
+  // 延迟 10 秒首次检查
+  setTimeout(async () => {
+    if (shouldCheck()) {
+      try { await checkForAppUpdate() } catch (err) {
+        console.warn('[应用更新] 自动检查失败:', err.message)
+      }
+    }
+
+    // 设置定时轮询（每小时检查一次是否到时间）
+    autoCheckTimer = setInterval(async () => {
+      if (shouldCheck()) {
+        try { await checkForAppUpdate() } catch (err) {
+          console.warn('[应用更新] 自动检查失败:', err.message)
+        }
+      }
+    }, 60 * 60 * 1000) // 每小时轮询一次
+  }, 10000)
+}
+
+/**
+ * 停止自动检查
+ */
+function stopAutoCheck() {
+  if (autoCheckTimer) {
+    clearInterval(autoCheckTimer)
+    autoCheckTimer = null
+  }
+}
+
+/**
+ * 更新设置并持久化
+ * @param {object} newSettings - { autoCheckApp, checkFrequency }
+ */
+function updateSettings(newSettings) {
+  if (newSettings.autoCheckApp !== undefined) _updateSettings.autoCheckApp = newSettings.autoCheckApp
+  if (newSettings.checkFrequency) _updateSettings.checkFrequency = newSettings.checkFrequency
+  saveSettings()
+
+  // 根据新设置重启或停止自动检查
+  if (_updateSettings.autoCheckApp) {
+    startAutoCheck()
+  } else {
+    stopAutoCheck()
+  }
+}
+
+/**
+ * 获取当前更新设置
+ */
+function getUpdateSettings() {
+  return { ..._updateSettings, lastCheckTime }
+}
+
 module.exports = {
   getCurrentAppVersion,
   checkLatestRelease,
@@ -364,5 +543,9 @@ module.exports = {
   skipVersion,
   getCachedRelease,
   findPlatformAsset,
+  startAutoCheck,
+  stopAutoCheck,
+  updateSettings,
+  getUpdateSettings,
   AppUpdateEvents,
 }
