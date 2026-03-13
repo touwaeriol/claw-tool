@@ -91,17 +91,18 @@ const envReady = computed(() => {
 })
 
 /**
- * 从阿里镜像下载 Node.js MSI 并打开安装
+ * 下载 Node.js 安装包并打开
  */
 async function handleInstallNode() {
-  if (!installer || !executor) return
+  if (!installer) return
 
   nodeDownloading.value = true
   nodeDownloadProgress.value = 0
   nodeDownloadStatus.value = '正在获取版本信息...'
 
   try {
-    const result = await installer.downloadNodeMsi(executor, {
+    // 1. 下载安装包到 ~/Downloads
+    const result = await installer.downloadNodeInstaller({
       onProgress: (percent, downloaded, total) => {
         nodeDownloadProgress.value = percent
         nodeDownloadStatus.value = `下载中 ${downloaded} / ${total}`
@@ -111,12 +112,20 @@ async function handleInstallNode() {
       },
     })
 
-    if (result.success) {
+    if (!result.success) {
+      nodeDownloadStatus.value = `下载失败: ${result.error}`
+      ElMessage.error(`下载失败: ${result.error}`)
+      return
+    }
+
+    // 2. 打开安装包
+    const openResult = installer.openNodeInstaller(result.installerPath)
+    if (openResult.success) {
       nodeDownloadStatus.value = '安装程序已打开，请完成安装后点击"重新检测"'
       ElMessage.success(`Node.js v${result.version} 安装包已打开，请在安装向导中完成安装`)
     } else {
-      nodeDownloadStatus.value = `下载失败: ${result.error}`
-      ElMessage.error(`下载失败: ${result.error}`)
+      nodeDownloadStatus.value = `打开安装包失败: ${openResult.error}`
+      ElMessage.error(`打开安装包失败: ${openResult.error}`)
     }
   } catch (err) {
     nodeDownloadStatus.value = `出错: ${err.message}`

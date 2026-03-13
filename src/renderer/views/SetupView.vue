@@ -47,15 +47,13 @@ const nodeInstallGuide = ref(null)
 /* npm 镜像源 */
 const npmRegistry = ref('')
 
-/* Node.js 安装路径 */
-const nodeInstallDir = ref('C:\\Program Files\\nodejs')
-
 /* Node.js 自动下载状态 */
 const nodeDownloading = ref(false)
 const nodeDownloadProgress = ref(0)
-const nodeDownloadStatus = ref('')  // '', 'downloading', 'done', 'error'
+const nodeDownloadStatus = ref('')  // '', 'downloading', 'downloaded', 'opening', 'waiting', 'error'
 const nodeDownloadError = ref('')
 const nodeDownloadVersion = ref('')
+const nodeInstallerPath = ref('')
 
 /* 步骤标题 */
 const stepTitles = ['环境检测', '安装 Node.js', '安装 OpenClaw', '完成']
@@ -160,7 +158,7 @@ async function startEnvCheck() {
   }
 }
 
-/* 全自动下载 + 静默安装 Node.js */
+/* 下载 Node.js 安装包到下载目录，然后帮用户打开 */
 async function autoDownloadNode() {
   const installer = getInstaller()
   if (!installer || nodeDownloading.value) return
@@ -171,47 +169,39 @@ async function autoDownloadNode() {
   nodeDownloadError.value = ''
 
   try {
-    const result = await installer.installNodeSilent(null, {
-      installDir: nodeInstallDir.value || undefined,
+    // 1. 下载安装包到 ~/Downloads
+    const result = await installer.downloadNodeInstaller({
       onProgress: (percent, downloaded, total) => {
         nodeDownloadProgress.value = percent
       },
       onLog: (msg) => addLog(msg),
     })
 
-    if (result.success) {
-      nodeDownloadStatus.value = 'done'
-      nodeDownloadVersion.value = result.version || ''
-      addLog(`Node.js v${result.version} 已自动安装到 ${result.installDir}`)
-
-      // 自动重新检测并跳到下一步
-      const executor = getExecutor()
-      if (executor) {
-        const nodeResult = await installer.checkNode(executor)
-        envCheck.value.nodeInstalled = nodeResult.installed
-        envCheck.value.nodeVersion = nodeResult.version ? `v${nodeResult.version}` : ''
-        envCheck.value.nodeMeetsRequirement = nodeResult.meetsRequirement
-        appStore.nodeVersion = nodeResult.version
-
-        const npmResult = await installer.checkNpm(executor)
-        envCheck.value.npmInstalled = npmResult.installed
-        envCheck.value.npmVersion = npmResult.version ? `v${npmResult.version}` : ''
-
-        if (nodeResult.meetsRequirement && npmResult.installed) {
-          steps.value[1].status = 'success'
-          steps.value[1].message = `Node.js ${envCheck.value.nodeVersion} 已就绪`
-          ElMessage.success('Node.js 自动安装成功！')
-          currentStep.value = 2
-        }
-      }
-    } else {
+    if (!result.success) {
       nodeDownloadStatus.value = 'error'
       nodeDownloadError.value = result.error
+      return
+    }
+
+    nodeDownloadVersion.value = result.version || ''
+    nodeInstallerPath.value = result.installerPath || ''
+    nodeDownloadStatus.value = 'downloaded'
+    addLog(`安装包已下载到 ${result.installerPath}`)
+
+    // 2. 打开安装包
+    nodeDownloadStatus.value = 'opening'
+    const openResult = installer.openNodeInstaller(result.installerPath)
+    if (openResult.success) {
+      nodeDownloadStatus.value = 'waiting'
+      addLog('已打开安装程序，请在弹出的安装向导中完成安装')
+    } else {
+      nodeDownloadStatus.value = 'error'
+      nodeDownloadError.value = `打开安装包失败: ${openResult.error}`
     }
   } catch (err) {
     nodeDownloadStatus.value = 'error'
     nodeDownloadError.value = err.message
-    addLog(`安装失败: ${err.message}`)
+    addLog(`下载失败: ${err.message}`)
   } finally {
     nodeDownloading.value = false
   }
@@ -220,9 +210,8 @@ async function autoDownloadNode() {
 /* 当进入步骤1且Node未安装时，自动开始下载 */
 watch(currentStep, (step) => {
   if (step === 1 && !envCheck.value.nodeMeetsRequirement && nodeDownloadStatus.value === '') {
-    // 判断是否 Windows 平台（有 downloadNodeMsi）
     const installer = getInstaller()
-    if (installer?.downloadNodeMsi) {
+    if (installer?.downloadNodeInstaller) {
       autoDownloadNode()
     }
   }
@@ -465,20 +454,13 @@ onMounted(async () => {
             <el-result icon="success" title="Node.js 已安装" :sub-title="'版本: ' + envCheck.nodeVersion" />
           </div>
 
-          <!-- 未安装：自动下载 + 手动选项 -->
+          <!-- 未安装：下载 + 打开安装包 -->
           <template v-else>
-            <!-- 安装路径 -->
-            <div v-if="nodeDownloadStatus === '' || nodeDownloadStatus === 'error'" class="node-install-dir">
-              <el-form-item label="安装路径" label-width="auto" style="margin-bottom: 0">
-                <el-input v-model="nodeInstallDir" placeholder="C:\Program Files\nodejs" style="width: 360px" />
-              </el-form-item>
-            </div>
-
-            <!-- 下载 + 安装进度区 -->
+            <!-- 下载进度 -->
             <div v-if="nodeDownloadStatus === 'downloading'" class="node-download-section">
               <div class="download-status-text">
                 <el-icon class="is-loading"><ElIconLoading /></el-icon>
-                <span>{{ nodeDownloadProgress < 100 ? '正在下载 Node.js 安装包...' : '正在静默安装 Node.js...' }}</span>
+                <span>正在下载 Node.js 安装包...</span>
               </div>
               <el-progress :percentage="nodeDownloadProgress" :stroke-width="10" style="width: 100%" />
               <div class="install-log" style="margin-top: 12px">
@@ -486,17 +468,21 @@ onMounted(async () => {
               </div>
             </div>
 
-            <!-- 安装完成 -->
-            <div v-else-if="nodeDownloadStatus === 'done'" class="node-download-section">
-              <el-result icon="success" title="Node.js 安装成功" :sub-title="'Node.js v' + nodeDownloadVersion + ' 已自动安装并配置环境变量'">
+            <!-- 等待用户安装 -->
+            <div v-else-if="nodeDownloadStatus === 'waiting' || nodeDownloadStatus === 'downloaded' || nodeDownloadStatus === 'opening'" class="node-download-section">
+              <el-result icon="info" title="请完成 Node.js 安装" :sub-title="'安装包已下载并打开，请在弹出的安装向导中完成安装，然后点击下方按钮重新检测'">
                 <template #extra>
                   <div class="recheck-actions">
                     <el-button type="primary" :loading="isProcessing" @click="recheckNode">
-                      <el-icon><ElIconRefresh /></el-icon> 重新检测
+                      <el-icon><ElIconRefresh /></el-icon> 安装完成，重新检测
                     </el-button>
+                    <el-button @click="autoDownloadNode">重新下载</el-button>
                   </div>
                 </template>
               </el-result>
+              <div class="install-log" style="margin-top: 12px">
+                <div v-for="(line, i) in installLog" :key="i" class="log-line">{{ line }}</div>
+              </div>
             </div>
 
             <!-- 下载失败 -->
@@ -508,13 +494,15 @@ onMounted(async () => {
               </el-result>
             </div>
 
-            <!-- 初始/备选安装方式 -->
+            <!-- 初始状态：自动下载按钮 + 备选方式 -->
             <div v-else class="install-actions">
+              <el-button type="primary" :loading="nodeDownloading" @click="autoDownloadNode">
+                下载安装 Node.js
+              </el-button>
               <template v-if="nodeInstallGuide">
                 <el-button
                   v-for="method in nodeInstallGuide.methods.filter(m => m.command)"
                   :key="method.name"
-                  type="primary"
                   :loading="isProcessing"
                   @click="handleInstallNode(method.command.includes('brew') ? 'brew' : 'nvm')"
                 >
@@ -529,9 +517,6 @@ onMounted(async () => {
                   {{ method.name }}
                 </el-button>
               </template>
-              <el-button v-else type="primary" :loading="isProcessing" disabled>
-                自动安装 Node.js
-              </el-button>
             </div>
           </template>
         </div>
@@ -730,11 +715,6 @@ onMounted(async () => {
 .install-actions {
   display: flex;
   gap: 12px;
-}
-
-.node-install-dir {
-  width: 100%;
-  margin-bottom: 8px;
 }
 
 /* Node 自动下载区 */
