@@ -1,0 +1,159 @@
+# Multiple Gateways
+
+Source: https://docs.openclaw.ai/gateway/multiple-gateways
+
+---
+
+Configuration and operations
+
+# Multiple Gateways
+
+# [​
+](#multiple-gateways-same-host)
+Multiple Gateways (same host)
+
+Most setups should use one Gateway because a single Gateway can handle multiple messaging connections and agents. If you need stronger isolation or redundancy (e.g., a rescue bot), run separate Gateways with isolated profiles/ports.
+
+## [​
+](#isolation-checklist-required)
+Isolation checklist (required)
+
+- `OPENCLAW_CONFIG_PATH` — per-instance config file
+
+- `OPENCLAW_STATE_DIR` — per-instance sessions, creds, caches
+
+- `agents.defaults.workspace` — per-instance workspace root
+
+- `gateway.port` (or `--port`) — unique per instance
+
+- Derived ports (browser/canvas) must not overlap
+
+If these are shared, you will hit config races and port conflicts.
+
+## [​
+](#recommended-profiles-profile)
+Recommended: profiles (`--profile`)
+
+Profiles auto-scope `OPENCLAW_STATE_DIR` + `OPENCLAW_CONFIG_PATH` and suffix service names.
+Copy
+
+```
+# main
+openclaw --profile main setup
+openclaw --profile main gateway --port 18789
+
+# rescue
+openclaw --profile rescue setup
+openclaw --profile rescue gateway --port 19001
+
+```
+
+Per-profile services:
+Copy
+
+```
+openclaw --profile main gateway install
+openclaw --profile rescue gateway install
+
+```
+
+## [​
+](#rescue-bot-guide)
+Rescue-bot guide
+
+Run a second Gateway on the same host with its own:
+
+- profile/config
+
+- state dir
+
+- workspace
+
+- base port (plus derived ports)
+
+This keeps the rescue bot isolated from the main bot so it can debug or apply config changes if the primary bot is down.
+Port spacing: leave at least 20 ports between base ports so the derived browser/canvas/CDP ports never collide.
+
+### [​
+](#how-to-install-rescue-bot)
+How to install (rescue bot)
+
+Copy
+
+```
+# Main bot (existing or fresh, without --profile param)
+# Runs on port 18789 + Chrome CDC/Canvas/... Ports
+openclaw onboard
+openclaw gateway install
+
+# Rescue bot (isolated profile + ports)
+openclaw --profile rescue onboard
+# Notes:
+# - workspace name will be postfixed with -rescue per default
+# - Port should be at least 18789 + 20 Ports,
+#   better choose completely different base port, like 19789,
+# - rest of the onboarding is the same as normal
+
+# To install the service (if not happened automatically during onboarding)
+openclaw --profile rescue gateway install
+
+```
+
+## [​
+](#port-mapping-derived)
+Port mapping (derived)
+
+Base port = `gateway.port` (or `OPENCLAW_GATEWAY_PORT` / `--port`).
+
+- browser control service port = base + 2 (loopback only)
+
+- canvas host is served on the Gateway HTTP server (same port as `gateway.port`)
+
+- Browser profile CDP ports auto-allocate from `browser.controlPort + 9 .. + 108`
+
+If you override any of these in config or env, you must keep them unique per instance.
+
+## [​
+](#browser/cdp-notes-common-footgun)
+Browser/CDP notes (common footgun)
+
+- Do **not** pin `browser.cdpUrl` to the same values on multiple instances.
+
+- Each instance needs its own browser control port and CDP range (derived from its gateway port).
+
+- If you need explicit CDP ports, set `browser.profiles.<name>.cdpPort` per instance.
+
+- Remote Chrome: use `browser.profiles.<name>.cdpUrl` (per profile, per instance).
+
+## [​
+](#manual-env-example)
+Manual env example
+
+Copy
+
+```
+OPENCLAW_CONFIG_PATH=~/.openclaw/main.json \
+OPENCLAW_STATE_DIR=~/.openclaw-main \
+openclaw gateway --port 18789
+
+OPENCLAW_CONFIG_PATH=~/.openclaw/rescue.json \
+OPENCLAW_STATE_DIR=~/.openclaw-rescue \
+openclaw gateway --port 19001
+
+```
+
+## [​
+](#quick-checks)
+Quick checks
+
+Copy
+
+```
+openclaw --profile main status
+openclaw --profile rescue status
+openclaw --profile rescue browser status
+
+```
+
+[Background Exec and Process Tool](/gateway/background-process)[Troubleshooting](/gateway/troubleshooting)
+⌘I

@@ -1,0 +1,150 @@
+/* 全局样式 */
+@import './variables.css';
+@import './element-dark.css';
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  color: var(--ct-text-primary);
+  background: var(--ct-bg-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 禁用拖拽选中（桌面应用体验） */
+body {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 允许文本区域选中 */
+input, textarea, .selectable, code, pre {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ct-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ct-border-light);
+}
+
+/* 选中文字颜色 */
+::selection {
+  background: rgba(64, 158, 255, 0.3);
+  color: var(--ct-text-primary);
+}
+
+/* 链接 */
+a {
+  color: var(--ct-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--ct-primary-light);
+}
+
+/* Element Plus 深色主题卡片覆盖 */
+.el-card {
+  --el-card-bg-color: var(--ct-bg-card);
+  --el-card-border-color: var(--ct-border);
+}
+
+.el-drawer {
+  --el-drawer-bg-color: var(--ct-bg-elevated);
+}
+
+/* 通用工具类 */
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 状态指示点 */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-dot--running {
+  background: var(--ct-success);
+  box-shadow: 0 0 6px rgba(103, 194, 58, 0.5);
+}
+
+.status-dot--stopped {
+  background: var(--ct-danger);
+}
+
+.status-dot--unknown {
+  background: var(--ct-info);
+}
+
+/* 卡片悬浮效果 */
+.hover-card {
+  transition: transform var(--ct-transition), box-shadow var(--ct-transition);
+}
+
+.hover-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--ct-shadow-md);
+}
+
+/* 渐入动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 路由切换滑入动画 */
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.slide-right-enter-from {
+  transform: translateX(20px);
+  opacity: 0;
+}
+
+.slide-right-leave-to {
+  transform: translateX(-20px);
+  opacity: 0;
+}

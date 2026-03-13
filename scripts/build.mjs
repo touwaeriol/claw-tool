@@ -1,0 +1,305 @@
+#!/usr/bin/env node
+
+/**
+ * Claw-Tool 跨平台构建脚本
+ *
+ * 用法：
+ *   node scripts/build.mjs                              # 构建当前平台
+ *   node scripts/build.mjs --platform win --arch x64    # 指定平台
+ *   node scripts/build.mjs --platform osx --arch arm64  # macOS ARM64
+ *   node scripts/build.mjs --all                        # 构建所有目标
+ *   node scripts/build.mjs --vite-only                  # 仅 Vite 构建（不打包）
+ *
+ * 构建流程：
+ *   1. Vite 构建渲染进程 (Vue 3 应用) → dist/
+ *   2. 复制主进程 + shared 代码到 dist/
+ *   3. 生成 dist/package.json（NW.js manifest）
+ *   4. 安装运行时依赖到 dist/
+ *   5. 复制图标资源到 dist/
+ *   6. nw-builder 打包为各平台可执行文件 → release/
+ */
+
+import { execSync } from 'child_process'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
+import {
+  existsSync,
+  mkdirSync,
+  cpSync,
+  readFileSync,
+  writeFileSync,
+  rmSync,
+} from 'fs'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const ROOT = resolve(__dirname, '..')
+
+// ─── 常量 ─────────────────────────────────────────────
+
+/** NW.js 版本 — 与 devDependencies 中的 nw 包版本保持一致 */
+const NW_VERSION = '0.96.0'
+
+/** 源图标路径 */
+const ICON_SRC = resolve(ROOT, '.image', 'claw-tool-icon.png')
+
+/** 构建目标定义 */
+const BUILD_TARGETS = [
+  { platform: 'win', arch: 'x64', label: 'Windows x64' },
+  { platform: 'win', arch: 'arm64', label: 'Windows ARM64' },
+  { platform: 'osx', arch: 'arm64', label: 'macOS ARM64 (Apple Silicon)' },
+]
+
+const DIST_DIR = resolve(ROOT, 'dist')
+const RELEASE_DIR = resolve(ROOT, 'release')
+
+// ─── 参数解析 ─────────────────────────────────────────
+
+const argv = process.argv.slice(2)
+
+function hasFlag(name) {
+  return argv.includes(`--${name}`)
+}
+
+function getFlagValue(name) {
+  const idx = argv.indexOf(`--${name}`)
+  return idx !== -1 && idx + 1 < argv.length ? argv[idx + 1] : null
+}
+
+function resolveTargets() {
+  if (hasFlag('all')) {
+    return BUILD_TARGETS
+  }
+
+  const platform = getFlagValue('platform')
+  const arch = getFlagValue('arch')
+
+  if (platform && arch) {
+    const target = BUILD_TARGETS.find(t => t.platform === platform && t.arch === arch)
+    if (!target) {
+      console.error(`错误：不支持的构建目标 ${platform}-${arch}`)
+      console.error('支持的目标：', BUILD_TARGETS.map(t => `${t.platform}-${t.arch}`).join(', '))
+      process.exit(1)
+    }
+    return [target]
+  }
+
+  // 自动检测当前平台
+  const currentPlatform = process.platform === 'darwin' ? 'osx' : 'win'
+  const currentArch = process.arch === 'arm64' ? 'arm64' : 'x64'
+  const target = BUILD_TARGETS.find(t => t.platform === currentPlatform && t.arch === currentArch)
+  return [target || BUILD_TARGETS[0]]
+}
+
+// ─── 工具函数 ─────────────────────────────────────────
+
+function step(msg) {
+  console.log(`\n${'='.repeat(60)}`)
+  console.log(`  ${msg}`)
+  console.log('='.repeat(60))
+}
+
+function run(cmd, options = {}) {
+  console.log(`  > ${cmd}`)
+  execSync(cmd, { cwd: ROOT, stdio: 'inherit', ...options })
+}
+
+function ensureDir(dir) {
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+}
+
+function copyDir(src, dest, label) {
+  if (!existsSync(src)) {
+    console.log(`  跳过（不存在）: ${label}`)
+    return
+  }
+  ensureDir(dest)
+  cpSync(src, dest, { recursive: true })
+  console.log(`  已复制: ${label}`)
+}
+
+// ─── 构建步骤 ─────────────────────────────────────────
+
+/**
+ * 步骤 1: Vite 构建渲染进程
+ */
+function buildRenderer() {
+  step('步骤 1/5: Vite 构建渲染进程')
+  run('npx vite build')
+}
+
+/**
+ * 步骤 2: 复制主进程和共享代码
+ */
+function copyMainProcess() {
+  step('步骤 2/5: 复制主进程和共享代码')
+
+  copyDir(
+    resolve(ROOT, 'src', 'main'),
+    resolve(DIST_DIR, 'main'),
+    'src/main/ → dist/main/',
+  )
+
+  copyDir(
+    resolve(ROOT, 'src', 'shared'),
+    resolve(DIST_DIR, 'shared'),
+    'src/shared/ → dist/shared/',
+  )
+
+  // executor 和 instances 模块（如果存在）
+  copyDir(
+    resolve(ROOT, 'src', 'executor'),
+    resolve(DIST_DIR, 'executor'),
+    'src/executor/ → dist/executor/',
+  )
+
+  copyDir(
+    resolve(ROOT, 'src', 'instances'),
+    resolve(DIST_DIR, 'instances'),
+    'src/instances/ → dist/instances/',
+  )
+}
+
+/**
+ * 步骤 3: 生成 dist/package.json 并复制图标
+ */
+function generateDistManifest() {
+  step('步骤 3/5: 生成 NW.js manifest 和图标')
+
+  const srcPkg = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf-8'))
+
+  // 复制图标到 dist
+  const distIconDir = resolve(DIST_DIR, 'icons')
+  ensureDir(distIconDir)
+
+  if (existsSync(ICON_SRC)) {
+    cpSync(ICON_SRC, resolve(distIconDir, 'icon.png'))
+    console.log('  已复制图标: .image/claw-tool-icon.png → dist/icons/icon.png')
+  } else {
+    console.warn('  警告：未找到图标文件 .image/claw-tool-icon.png')
+  }
+
+  // 复制平台特定图标（如果存在）
+  const buildIconsDir = resolve(ROOT, 'build', 'icons')
+  if (existsSync(buildIconsDir)) {
+    for (const file of ['icon.ico', 'icon.icns']) {
+      const src = resolve(buildIconsDir, file)
+      if (existsSync(src)) {
+        cpSync(src, resolve(distIconDir, file))
+        console.log(`  已复制图标: build/icons/${file} → dist/icons/${file}`)
+      }
+    }
+  }
+
+  // 生成 NW.js 打包用的 package.json
+  const distPkg = {
+    name: srcPkg.name,
+    version: srcPkg.version,
+    description: srcPkg.description,
+    main: 'index.html',
+    'node-main': 'main/index.js',
+    window: {
+      title: 'Claw Tool',
+      width: 1200,
+      height: 800,
+      min_width: 900,
+      min_height: 600,
+      icon: 'icons/icon.png',
+    },
+    'chromium-args': srcPkg['chromium-args'] || '--mixed-context',
+    dependencies: srcPkg.dependencies || {},
+  }
+
+  writeFileSync(
+    resolve(DIST_DIR, 'package.json'),
+    JSON.stringify(distPkg, null, 2),
+    'utf-8',
+  )
+  console.log('  已生成: dist/package.json')
+}
+
+/**
+ * 步骤 4: 安装运行时依赖
+ */
+function installDeps() {
+  step('步骤 4/5: 安装运行时依赖')
+  run('npm install --omit=dev', { cwd: DIST_DIR })
+}
+
+/**
+ * 步骤 5: nw-builder 打包
+ */
+function packTarget(target) {
+  step(`步骤 5/5: 打包 ${target.label}`)
+
+  const platformLabel = target.platform === 'win' ? 'windows' : 'macos'
+  const outDir = resolve(RELEASE_DIR, `${platformLabel}-${target.arch}`)
+
+  ensureDir(RELEASE_DIR)
+
+  // 清理旧的输出
+  if (existsSync(outDir)) {
+    rmSync(outDir, { recursive: true })
+  }
+
+  const nwbuildArgs = [
+    '--platform', target.platform,
+    '--arch', target.arch,
+    '--version', NW_VERSION,
+    '--flavor', 'normal',
+    '--outDir', outDir,
+    '--glob', 'false',
+    '.',
+  ]
+
+  run(`npx nwbuild ${nwbuildArgs.join(' ')}`, { cwd: DIST_DIR })
+
+  console.log(`\n  打包完成: release/${platformLabel}-${target.arch}/`)
+}
+
+// ─── 主流程 ───────────────────────────────────────────
+
+async function main() {
+  const pkg = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf-8'))
+  const viteOnly = hasFlag('vite-only')
+  const targets = viteOnly ? [] : resolveTargets()
+
+  console.log(`\nClaw-Tool v${pkg.version} 构建脚本`)
+  if (viteOnly) {
+    console.log('模式: 仅 Vite 构建')
+  } else {
+    console.log(`目标: ${targets.map(t => t.label).join(', ')}`)
+  }
+
+  const startTime = Date.now()
+
+  // 步骤 1: Vite 构建
+  buildRenderer()
+
+  // 步骤 2: 复制主进程
+  copyMainProcess()
+
+  // 步骤 3: 生成 manifest + 图标
+  generateDistManifest()
+
+  if (!viteOnly) {
+    // 步骤 4: 安装依赖
+    installDeps()
+
+    // 步骤 5: 逐个平台打包
+    for (const target of targets) {
+      packTarget(target)
+    }
+  }
+
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
+  console.log(`\n构建完成！耗时 ${elapsed}s`)
+
+  if (!viteOnly) {
+    console.log(`输出目录: ${RELEASE_DIR}`)
+  }
+}
+
+main().catch(err => {
+  console.error('\n构建失败:', err.message || err)
+  process.exit(1)
+})

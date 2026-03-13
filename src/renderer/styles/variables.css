@@ -1,0 +1,102 @@
+/* 全局 CSS 变量 — 亮/暗双主题 */
+
+/* 亮色主题（默认） */
+:root,
+html.light {
+  /* 主色调 */
+  --ct-primary: #409eff;
+  --ct-primary-light: #66b1ff;
+  --ct-primary-dark: #3375b9;
+
+  /* 功能色 */
+  --ct-success: #67c23a;
+  --ct-warning: #e6a23c;
+  --ct-danger: #f56c6c;
+  --ct-info: #909399;
+
+  /* 亮色背景层次（由浅到深） */
+  --ct-bg-base: #f5f7fa;
+  --ct-bg-page: #ffffff;
+  --ct-bg-card: #ffffff;
+  --ct-bg-elevated: #f0f2f5;
+  --ct-bg-overlay: #ebeef5;
+
+  /* 边框 */
+  --ct-border: #dcdfe6;
+  --ct-border-light: #e4e7ed;
+
+  /* 文字 */
+  --ct-text-primary: #303133;
+  --ct-text-regular: #606266;
+  --ct-text-secondary: #909399;
+  --ct-text-placeholder: #a8abb2;
+  --ct-text-disabled: #c0c4cc;
+
+  /* 侧边栏 */
+  --ct-sidebar-width: 220px;
+  --ct-sidebar-collapsed-width: 64px;
+  --ct-sidebar-bg: #f8f9fb;
+
+  /* 顶栏 */
+  --ct-header-height: 56px;
+  --ct-header-bg: #ffffff;
+
+  /* 状态栏 */
+  --ct-statusbar-height: 28px;
+
+  /* 圆角 */
+  --ct-radius-sm: 4px;
+  --ct-radius-md: 8px;
+  --ct-radius-lg: 12px;
+
+  /* 阴影 */
+  --ct-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --ct-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
+  --ct-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+
+  /* 过渡 */
+  --ct-transition: 0.25s ease;
+}
+
+/* 暗色主题 */
+html.dark {
+  /* 主色调 */
+  --ct-primary: #409eff;
+  --ct-primary-light: #66b1ff;
+  --ct-primary-dark: #3375b9;
+
+  /* 功能色 */
+  --ct-success: #67c23a;
+  --ct-warning: #e6a23c;
+  --ct-danger: #f56c6c;
+  --ct-info: #909399;
+
+  /* 深色背景层次（由深到浅） */
+  --ct-bg-base: #0a0c10;
+  --ct-bg-page: #0f1117;
+  --ct-bg-card: #161822;
+  --ct-bg-elevated: #1d1f2b;
+  --ct-bg-overlay: #252836;
+
+  /* 边框 */
+  --ct-border: #2a2d3a;
+  --ct-border-light: #363948;
+
+  /* 文字 */
+  --ct-text-primary: #e5eaf3;
+  --ct-text-regular: #cfd3dc;
+  --ct-text-secondary: #8d9095;
+  --ct-text-placeholder: #5a5e68;
+  --ct-text-disabled: #4c4f56;
+
+  /* 侧边栏 */
+  --ct-sidebar-bg: #0d0f15;
+
+  /* 顶栏 */
+  --ct-header-bg: #0f1117;
+
+  /* 阴影 */
+  --ct-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --ct-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --ct-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+}

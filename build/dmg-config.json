@@ -1,0 +1,25 @@
+{
+  "title": "Claw Tool",
+  "icon": "../assets/logo.png",
+  "background-color": "#ffffff",
+  "icon-size": 80,
+  "window": {
+    "size": {
+      "width": 540,
+      "height": 380
+    }
+  },
+  "contents": [
+    {
+      "x": 140,
+      "y": 200,
+      "type": "file"
+    },
+    {
+      "x": 400,
+      "y": 200,
+      "type": "link",
+      "path": "/Applications"
+    }
+  ]
+}

@@ -1,0 +1,159 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: '构建平台 (all/win-x64/win-arm64/mac-arm64)'
+        required: false
+        default: 'all'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build & Pack
+        run: node scripts/build.mjs --platform win --arch ${{ matrix.arch }}
+
+      - name: Install NSIS
+        run: choco install nsis -y
+
+      - name: Generate Windows installer
+        run: node scripts/make-installer.mjs --platform win --arch ${{ matrix.arch }}
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: claw-tool-win-${{ matrix.arch }}-setup
+          path: release/installers/claw-tool-*-win-${{ matrix.arch }}-setup.exe
+          retention-days: 30
+
+      - name: Upload raw build
+        uses: actions/upload-artifact@v4
+        with:
+          name: claw-tool-windows-${{ matrix.arch }}
+          path: release/windows-${{ matrix.arch }}/
+          retention-days: 30
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build & Pack
+        run: node scripts/build.mjs --platform osx --arch arm64
+
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Generate macOS DMG
+        run: node scripts/make-installer.mjs --platform osx --arch arm64
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: claw-tool-mac-arm64-dmg
+          path: release/installers/claw-tool-*-mac-arm64.dmg
+          retention-days: 30
+
+      - name: Upload raw build
+        uses: actions/upload-artifact@v4
+        with:
+          name: claw-tool-macos-arm64
+          path: release/macos-arm64/
+          retention-days: 30
+
+  release:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+
+          # 复制安装包
+          for dir in artifacts/claw-tool-win-*-setup artifacts/claw-tool-mac-*-dmg; do
+            if [ -d "$dir" ]; then
+              cp "$dir"/* release-assets/ 2>/dev/null || true
+            fi
+          done
+
+          # 为散装构建创建 zip 归档
+          cd artifacts
+          for dir in claw-tool-windows-* claw-tool-macos-*; do
+            if [ -d "$dir" ]; then
+              zip -r "../release-assets/${dir}.zip" "$dir"
+            fi
+          done
+
+          echo "Release assets:"
+          ls -lh ../release-assets/
+
+      - name: Extract release notes from tag
+        id: tag_message
+        run: |
+          # 尝试从 tag 注释中提取 release notes
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          TAG_MSG=$(git tag -l --format='%(contents)' "$TAG_NAME" 2>/dev/null || echo "")
+
+          if [ -z "$TAG_MSG" ] || [ "$TAG_MSG" = "$TAG_NAME" ]; then
+            # 如果没有 tag message，使用自动生成的 notes
+            echo "has_notes=false" >> "$GITHUB_OUTPUT"
+          else
+            # 将 tag message 写入文件
+            echo "$TAG_MSG" > release_notes.md
+            echo "has_notes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+          body_path: ${{ steps.tag_message.outputs.has_notes == 'true' && 'release_notes.md' || '' }}
+          generate_release_notes: ${{ steps.tag_message.outputs.has_notes != 'true' }}
+          draft: false
+          prerelease: ${{ contains(github.ref, '-alpha') || contains(github.ref, '-beta') || contains(github.ref, '-rc') }}

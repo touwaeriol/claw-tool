@@ -1,0 +1,48 @@
+/* Element Plus 主题变量覆盖 — 使用 CSS 变量实现亮暗自适应 */
+:root {
+  /* 背景色 */
+  --el-bg-color: var(--ct-bg-card);
+  --el-bg-color-page: var(--ct-bg-page);
+  --el-bg-color-overlay: var(--ct-bg-overlay);
+
+  /* 文字颜色 */
+  --el-text-color-primary: var(--ct-text-primary);
+  --el-text-color-regular: var(--ct-text-regular);
+  --el-text-color-secondary: var(--ct-text-secondary);
+  --el-text-color-placeholder: var(--ct-text-placeholder);
+  --el-text-color-disabled: var(--ct-text-disabled);
+
+  /* 边框颜色 */
+  --el-border-color: var(--ct-border);
+  --el-border-color-light: var(--ct-border-light);
+  --el-border-color-lighter: var(--ct-border);
+  --el-border-color-dark: var(--ct-border);
+
+  /* 填充色 */
+  --el-fill-color: var(--ct-bg-elevated);
+  --el-fill-color-light: var(--ct-bg-card);
+  --el-fill-color-lighter: var(--ct-bg-page);
+  --el-fill-color-blank: var(--ct-bg-card);
+
+  /* 主色 */
+  --el-color-primary: var(--ct-primary);
+  --el-color-success: var(--ct-success);
+  --el-color-warning: var(--ct-warning);
+  --el-color-danger: var(--ct-danger);
+  --el-color-info: var(--ct-info);
+
+  /* 阴影 */
+  --el-box-shadow: var(--ct-shadow-sm);
+  --el-box-shadow-light: var(--ct-shadow-sm);
+  --el-box-shadow-dark: var(--ct-shadow-md);
+}
+
+/* 暗色模式遮罩 */
+html.dark {
+  --el-mask-color: rgba(0, 0, 0, 0.6);
+}
+
+/* 亮色模式遮罩 */
+html.light {
+  --el-mask-color: rgba(0, 0, 0, 0.3);
+}
