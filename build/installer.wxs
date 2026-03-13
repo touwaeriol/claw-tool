@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Claw-Tool WiX 安装脚本模板
+
+  占位符（由 make-installer.mjs 替换）：
+    {{APP_NAME}}      — 应用名称（含空格，如 "Claw Tool"）
+    {{APP_VERSION}}   — 版本号（如 "0.1.0"）
+    {{UPGRADE_CODE}}  — 固定 GUID，用于升级识别
+    {{PRODUCT_CODE}}  — 每次构建唯一的 GUID
+    {{EXE_NAME}}      — 主可执行文件名（如 "claw-tool.exe"）
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
+  <Product Id="{{PRODUCT_CODE}}"
+           Name="{{APP_NAME}}"
+           Language="1033"
+           Version="{{APP_VERSION}}"
+           Manufacturer="Claw-Tool"
+           UpgradeCode="{{UPGRADE_CODE}}">
+
+    <Package InstallerVersion="200"
+             Compressed="yes"
+             InstallScope="perMachine"
+             Description="{{APP_NAME}} Installer"
+             Comments="{{APP_NAME}} v{{APP_VERSION}}" />
+
+    <!-- 支持升级安装：自动卸载旧版本 -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version of {{APP_NAME}} is already installed." />
+
+    <!-- 压缩到单个 cab 文件嵌入 MSI -->
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- 安装目录结构 -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="{{APP_NAME}}" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="{{APP_NAME}}" />
+      </Directory>
+      <Directory Id="DesktopFolder" />
+    </Directory>
+
+    <!-- 开始菜单快捷方式 -->
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="StartMenuShortcut" Guid="*">
+        <Shortcut Id="StartMenuShortcut"
+                  Name="{{APP_NAME}}"
+                  Target="[INSTALLFOLDER]{{EXE_NAME}}"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <RemoveFolder Id="CleanUpStartMenu" Directory="ApplicationProgramsFolder" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\{{APP_NAME}}" Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- 桌面快捷方式 -->
+    <DirectoryRef Id="DesktopFolder">
+      <Component Id="DesktopShortcut" Guid="*">
+        <Shortcut Id="DesktopShortcut"
+                  Name="{{APP_NAME}}"
+                  Target="[INSTALLFOLDER]{{EXE_NAME}}"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue Root="HKCU" Key="Software\{{APP_NAME}}" Name="DesktopShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- 功能定义：引用 heat 生成的 Fragment + 快捷方式 -->
+    <Feature Id="MainFeature" Title="{{APP_NAME}}" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="StartMenuShortcut" />
+      <ComponentRef Id="DesktopShortcut" />
+    </Feature>
+
+    <!-- UI：最小化界面（进度条） -->
+    <UIRef Id="WixUI_Minimal" />
+
+  </Product>
+</Wix>

@@ -38,17 +38,14 @@ jobs:
       - name: Build & Pack
         run: node scripts/build.mjs --platform win --arch ${{ matrix.arch }}
 
-      - name: Install NSIS
-        run: choco install nsis -y
-
-      - name: Generate Windows installer
+      - name: Generate Windows MSI installer
         run: node scripts/make-installer.mjs --platform win --arch ${{ matrix.arch }}
 
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: claw-tool-win-${{ matrix.arch }}-setup
-          path: release/installers/claw-tool-*-win-${{ matrix.arch }}-setup.exe
+          name: claw-tool-win-${{ matrix.arch }}-msi
+          path: release/installers/claw-tool-*-win-${{ matrix.arch }}.msi
           retention-days: 30
 
       - name: Upload raw build
@@ -116,7 +113,7 @@ jobs:
           mkdir -p release-assets
 
           # 复制安装包
-          for dir in artifacts/claw-tool-win-*-setup artifacts/claw-tool-mac-*-dmg; do
+          for dir in artifacts/claw-tool-win-*-msi artifacts/claw-tool-mac-*-dmg; do
             if [ -d "$dir" ]; then
               cp "$dir"/* release-assets/ 2>/dev/null || true
             fi

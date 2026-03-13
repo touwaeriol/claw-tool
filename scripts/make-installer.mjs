@@ -5,7 +5,7 @@
  *
  * 在 nw-builder 打包完成后运行，将 release/ 中的散装文件
  * 打包成平台原生安装包：
- *   - Windows: NSIS .exe 安装包
+ *   - Windows: WiX MSI 安装包
  *   - macOS:   .dmg 磁盘映像
  *
  * 用法：
@@ -23,8 +23,9 @@ import {
   writeFileSync,
   mkdirSync,
   readdirSync,
-  renameSync,
+  unlinkSync,
 } from 'fs'
+import { randomUUID } from 'crypto'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
@@ -74,10 +75,38 @@ function runCapture(cmd, options = {}) {
   return execSync(cmd, { cwd: ROOT, encoding: 'utf-8', ...options }).trim()
 }
 
-// ─── Windows 安装包（NSIS） ───────────────────────────────
+// ─── Windows 安装包（WiX MSI） ───────────────────────────
+
+// 固定 UpgradeCode，确保后续版本能正确升级
+const UPGRADE_CODE = 'e8a3b2c1-4d5f-6a7b-8c9d-0e1f2a3b4c5d'
+
+/**
+ * 在常见路径中查找 WiX Toolset v3.x 的 bin 目录
+ */
+function findWixBin() {
+  // CI 环境（GitHub Actions windows-latest）预装路径
+  const candidates = [
+    'C:\\Program Files (x86)\\WiX Toolset v3.14\\bin',
+    'C:\\Program Files (x86)\\WiX Toolset v3.11\\bin',
+  ]
+
+  for (const dir of candidates) {
+    if (existsSync(resolve(dir, 'candle.exe'))) {
+      return dir
+    }
+  }
+
+  // 尝试 PATH 中是否有 candle
+  try {
+    runCapture('where candle.exe')
+    return null // null 表示已在 PATH 中，不需要前缀
+  } catch {
+    return null
+  }
+}
 
 function makeWindowsInstaller(arch) {
-  step(`生成 Windows ${arch} 安装包 (NSIS)`)
+  step(`生成 Windows ${arch} MSI 安装包 (WiX)`)
 
   const sourceDir = resolve(RELEASE_DIR, `windows-${arch}`)
   if (!existsSync(sourceDir)) {
@@ -89,41 +118,85 @@ function makeWindowsInstaller(arch) {
 
   const outputFile = resolve(
     INSTALLER_DIR,
-    `claw-tool-${APP_VERSION}-win-${arch}-setup.exe`,
+    `claw-tool-${APP_VERSION}-win-${arch}.msi`,
   )
 
-  // 确定图标路径
-  const icoPath = resolve(BUILD_DIR, 'icons', 'icon.ico')
-  const fallbackIco = resolve(ROOT, 'assets', 'logo.png')
-  const iconFile = existsSync(icoPath) ? icoPath : fallbackIco
+  // 查找 WiX 工具路径
+  const wixBin = findWixBin()
+  const wixPrefix = wixBin ? `"${wixBin}\\` : '"'
+  const candle = `${wixPrefix}candle.exe"`
+  const light = `${wixPrefix}light.exe"`
+  const heat = `${wixPrefix}heat.exe"`
 
-  // 读取 NSIS 模板并替换占位符
-  const template = readFileSync(
-    resolve(BUILD_DIR, 'installer.nsi'),
-    'utf-8',
-  )
+  // 确定主可执行文件名
+  const exeName = 'claw-tool.exe'
 
-  const nsiContent = template
-    .replace(/\{\{APP_NAME\}\}/g, APP_NAME)
-    .replace(/\{\{APP_VERSION\}\}/g, APP_VERSION)
-    .replace(/\{\{ARCH\}\}/g, arch)
-    .replace(/\{\{SOURCE_DIR\}\}/g, sourceDir.replace(/\//g, '\\'))
-    .replace(/\{\{OUTPUT_FILE\}\}/g, outputFile.replace(/\//g, '\\'))
-    .replace(/\{\{ICON_FILE\}\}/g, iconFile.replace(/\//g, '\\'))
+  // 临时文件路径
+  const tmpDir = resolve(BUILD_DIR, '_wix_tmp')
+  ensureDir(tmpDir)
+  const heatWxs = resolve(tmpDir, 'files.wxs')
+  const mainWxs = resolve(tmpDir, 'main.wxs')
+  const heatObj = resolve(tmpDir, 'files.wixobj')
+  const mainObj = resolve(tmpDir, 'main.wixobj')
 
-  // 写入临时 .nsi 文件
-  const tmpNsi = resolve(BUILD_DIR, `installer-${arch}.nsi`)
-  writeFileSync(tmpNsi, nsiContent, 'utf-8')
-
-  // 调用 makensis
   try {
-    run(`makensis "${tmpNsi}"`)
-    console.log(`  安装包已生成: ${outputFile}`)
+    // 1. 用 heat.exe 收集源目录中的所有文件
+    console.log('  [1/4] heat.exe: 收集文件清单...')
+    run(
+      `${heat} dir "${sourceDir}"` +
+      ` -nologo -ag -srd -sfrag -sreg` +
+      ` -cg AppFiles -dr INSTALLFOLDER` +
+      ` -var var.SourceDir` +
+      ` -out "${heatWxs}"`,
+    )
+
+    // 2. 读取模板并替换占位符
+    console.log('  [2/4] 生成主 WXS...')
+    const template = readFileSync(resolve(BUILD_DIR, 'installer.wxs'), 'utf-8')
+    const productCode = randomUUID().toUpperCase()
+    const wxsContent = template
+      .replace(/\{\{APP_NAME\}\}/g, APP_NAME)
+      .replace(/\{\{APP_VERSION\}\}/g, APP_VERSION)
+      .replace(/\{\{UPGRADE_CODE\}\}/g, UPGRADE_CODE)
+      .replace(/\{\{PRODUCT_CODE\}\}/g, productCode)
+      .replace(/\{\{EXE_NAME\}\}/g, exeName)
+
+    writeFileSync(mainWxs, wxsContent, 'utf-8')
+
+    // 3. candle.exe 编译
+    console.log('  [3/4] candle.exe: 编译 WiX 源文件...')
+    run(
+      `${candle} -nologo -arch x64` +
+      ` -dSourceDir="${sourceDir}"` +
+      ` -out "${tmpDir}\\\\"` +
+      ` "${mainWxs}" "${heatWxs}"`,
+    )
+
+    // 4. light.exe 链接生成 MSI
+    console.log('  [4/4] light.exe: 链接生成 MSI...')
+    run(
+      `${light} -nologo` +
+      ` -ext WixUIExtension` +
+      ` -out "${outputFile}"` +
+      ` "${mainObj}" "${heatObj}"`,
+    )
+
+    console.log(`  MSI 安装包已生成: ${outputFile}`)
+
+    // 清理临时文件
+    for (const f of [heatWxs, mainWxs, heatObj, mainObj]) {
+      try { unlinkSync(f) } catch { /* ignore */ }
+    }
+    // 清理 light 生成的 wixpdb
+    const pdbFile = outputFile.replace(/\.msi$/, '.wixpdb')
+    try { unlinkSync(pdbFile) } catch { /* ignore */ }
+
     return outputFile
   } catch (err) {
-    console.error(`  NSIS 编译失败: ${err.message}`)
-    console.error('  请确保 NSIS 已安装并在 PATH 中')
-    console.error('  安装方法: choco install nsis 或从 https://nsis.sourceforge.io 下载')
+    console.error(`  MSI 生成失败: ${err.message}`)
+    console.error('  请确保 WiX Toolset v3.x 已安装')
+    console.error('  CI 环境 (GitHub Actions windows-latest) 已预装 WiX')
+    console.error('  本地安装: https://wixtoolset.org/releases/')
     return null
   }
 }
