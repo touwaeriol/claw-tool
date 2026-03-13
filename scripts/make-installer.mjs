@@ -224,7 +224,6 @@ function main() {
   if (hasFlag('all')) {
     // 构建所有已存在的目标
     results.push(makeWindowsInstaller('x64'))
-    results.push(makeWindowsInstaller('arm64'))
     results.push(makeMacDmg('arm64'))
   } else {
     const platform = getFlagValue('platform')

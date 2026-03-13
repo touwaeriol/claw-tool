@@ -42,10 +42,9 @@ const NW_VERSION = '0.96.0'
 /** 源图标路径 */
 const ICON_SRC = resolve(ROOT, '.image', 'claw-tool-icon.png')
 
-/** 构建目标定义 */
+/** 构建目标定义（NW.js 目前不支持 Windows ARM64） */
 const BUILD_TARGETS = [
   { platform: 'win', arch: 'x64', label: 'Windows x64' },
-  { platform: 'win', arch: 'arm64', label: 'Windows ARM64' },
   { platform: 'osx', arch: 'arm64', label: 'macOS ARM64 (Apple Silicon)' },
 ]
 
@@ -207,6 +206,17 @@ function generateDistManifest() {
     },
     'chromium-args': srcPkg['chromium-args'] || '--mixed-context',
     dependencies: srcPkg.dependencies || {},
+    // nw-builder macOS 打包配置
+    build: {
+      nwVersion: NW_VERSION,
+      nwFlavor: 'normal',
+      app: {
+        LSApplicationCategoryType: 'public.app-category.developer-tools',
+        CFBundleIdentifier: 'com.clawtool.app',
+        CFBundleDisplayName: 'Claw Tool',
+        CFBundleName: 'Claw Tool',
+      },
+    },
   }
 
   writeFileSync(
