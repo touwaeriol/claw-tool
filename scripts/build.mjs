@@ -206,17 +206,6 @@ function generateDistManifest() {
     },
     'chromium-args': srcPkg['chromium-args'] || '--mixed-context',
     dependencies: srcPkg.dependencies || {},
-    // nw-builder macOS 打包配置
-    build: {
-      nwVersion: NW_VERSION,
-      nwFlavor: 'normal',
-      app: {
-        LSApplicationCategoryType: 'public.app-category.developer-tools',
-        CFBundleIdentifier: 'com.clawtool.app',
-        CFBundleDisplayName: 'Claw Tool',
-        CFBundleName: 'Claw Tool',
-      },
-    },
   }
 
   writeFileSync(
@@ -236,9 +225,9 @@ function installDeps() {
 }
 
 /**
- * 步骤 5: nw-builder 打包
+ * 步骤 5: nw-builder 打包（使用 JS API 以支持 macOS app 配置）
  */
-function packTarget(target) {
+async function packTarget(target) {
   step(`步骤 5/5: 打包 ${target.label}`)
 
   const platformLabel = target.platform === 'win' ? 'windows' : 'macos'
@@ -251,17 +240,27 @@ function packTarget(target) {
     rmSync(outDir, { recursive: true })
   }
 
-  const nwbuildArgs = [
-    '--platform', target.platform,
-    '--arch', target.arch,
-    '--version', NW_VERSION,
-    '--flavor', 'normal',
-    '--outDir', outDir,
-    '--glob', 'false',
-    '.',
-  ]
+  const nwbuildOptions = {
+    mode: 'build',
+    platform: target.platform,
+    arch: target.arch,
+    version: NW_VERSION,
+    flavor: 'normal',
+    outDir: outDir,
+    glob: false,
+    srcDir: DIST_DIR,
+    app: {
+      // macOS Info.plist 必需字段
+      LSApplicationCategoryType: 'public.app-category.developer-tools',
+      CFBundleIdentifier: 'com.clawtool.app',
+      CFBundleDisplayName: 'Claw Tool',
+      CFBundleName: 'Claw Tool',
+    },
+  }
 
-  run(`npx nwbuild ${nwbuildArgs.join(' ')}`, { cwd: DIST_DIR })
+  // 动态导入 nw-builder
+  const nwbuild = (await import('nw-builder')).default
+  await nwbuild(nwbuildOptions)
 
   console.log(`\n  打包完成: release/${platformLabel}-${target.arch}/`)
 }
@@ -297,7 +296,7 @@ async function main() {
 
     // 步骤 5: 逐个平台打包
     for (const target of targets) {
-      packTarget(target)
+      await packTarget(target)
     }
   }
 
