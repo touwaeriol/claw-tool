@@ -240,6 +240,9 @@ async function packTarget(target) {
     rmSync(outDir, { recursive: true })
   }
 
+  // 读取版本号
+  const distPkg = JSON.parse(readFileSync(resolve(DIST_DIR, 'package.json'), 'utf-8'))
+
   const nwbuildOptions = {
     mode: 'build',
     platform: target.platform,
@@ -251,10 +254,17 @@ async function packTarget(target) {
     srcDir: DIST_DIR,
     app: {
       // macOS Info.plist 必需字段
+      name: 'Claw Tool',
+      icon: resolve(DIST_DIR, 'icons', 'icon.png'),
       LSApplicationCategoryType: 'public.app-category.developer-tools',
       CFBundleIdentifier: 'com.clawtool.app',
       CFBundleDisplayName: 'Claw Tool',
       CFBundleName: 'Claw Tool',
+      CFBundleSpokenName: 'Claw Tool',
+      CFBundleVersion: distPkg.version || '0.1.0',
+      CFBundleShortVersionString: distPkg.version || '0.1.0',
+      NSHumanReadableCopyright: `Copyright © 2024-2026 Claw Tool. MIT License.`,
+      NSLocalNetworkUsageDescription: 'Claw Tool needs local network access to communicate with OpenClaw gateway.',
     },
   }
 
