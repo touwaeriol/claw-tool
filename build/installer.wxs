@@ -28,6 +28,15 @@
     <!-- 支持升级安装：自动卸载旧版本 -->
     <MajorUpgrade DowngradeErrorMessage="A newer version of {{APP_NAME}} is already installed." />
 
+    <!-- 升级时从注册表读取之前的安装目录 -->
+    <Property Id="INSTALLFOLDER">
+      <RegistrySearch Id="PrevInstallDir"
+                      Root="HKLM"
+                      Key="Software\{{APP_NAME}}"
+                      Name="InstallDir"
+                      Type="raw" />
+    </Property>
+
     <!-- 压缩到单个 cab 文件嵌入 MSI -->
     <MediaTemplate EmbedCab="yes" />
 
@@ -41,6 +50,23 @@
       </Directory>
       <Directory Id="DesktopFolder" />
     </Directory>
+
+    <!-- 安装时将安装路径写入注册表（供后续升级检测） -->
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="InstallDirRegistry" Guid="a1b2c3d4-5e6f-7a8b-9c0d-e1f2a3b4c5d6">
+        <RegistryValue Root="HKLM"
+                       Key="Software\{{APP_NAME}}"
+                       Name="InstallDir"
+                       Type="string"
+                       Value="[INSTALLFOLDER]"
+                       KeyPath="yes" />
+        <RegistryValue Root="HKLM"
+                       Key="Software\{{APP_NAME}}"
+                       Name="Version"
+                       Type="string"
+                       Value="{{APP_VERSION}}" />
+      </Component>
+    </DirectoryRef>
 
     <!-- 应用图标（用于快捷方式和控制面板） -->
     <Icon Id="AppIcon.ico" SourceFile="{{ICON_FILE}}" />
@@ -76,6 +102,7 @@
       <ComponentGroupRef Id="AppFiles" />
       <ComponentRef Id="StartMenuShortcut" />
       <ComponentRef Id="DesktopShortcut" />
+      <ComponentRef Id="InstallDirRegistry" />
     </Feature>
 
     <!-- UI：含目录选择的安装界面 -->
