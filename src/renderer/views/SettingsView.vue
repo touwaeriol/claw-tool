@@ -434,7 +434,7 @@
 
   /* 打开项目链接 */
   function openProjectLink() {
-    openExternal('https://github.com/nicepkg/openclaw')
+    openExternal('https://github.com/touwaeriol/claw-tool')
   }
 
   /* 监听主进程自动检查到的更新事件 */
@@ -862,7 +862,7 @@
             <span class="info-label">{{ $t('settings.projectLink') }}</span>
             <span class="info-value">
               <el-link type="primary" @click="openProjectLink">
-                github.com/nicepkg/openclaw
+                github.com/touwaeriol/claw-tool
               </el-link>
             </span>
           </div>
