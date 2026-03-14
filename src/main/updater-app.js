@@ -401,8 +401,33 @@ function downloadUpdate(url, filename, onProgress) {
       // 目录可能已存在
     }
 
+    // 清理旧版本下载缓存（保留当前要下载的文件）
+    try {
+      const existingFiles = fs.readdirSync(tmpDir)
+      for (const f of existingFiles) {
+        if (f !== filename) {
+          try {
+            fs.unlinkSync(path.join(tmpDir, f))
+            console.log(`[应用更新] 已清理旧缓存: ${f}`)
+          } catch {
+            /* 忽略 */
+          }
+        }
+      }
+    } catch {
+      /* 忽略 */
+    }
+
     const filePath = path.join(tmpDir, filename)
-    const fileStream = fs.createWriteStream(filePath)
+
+    // 断点续传：检查已下载的部分
+    let existingSize = 0
+    try {
+      const stat = fs.statSync(filePath)
+      existingSize = stat.size
+    } catch {
+      // 文件不存在，从头下载
+    }
 
     // 仅在用户开启"使用代理下载更新"时使用代理
     let proxyUrl = null
@@ -415,6 +440,8 @@ function downloadUpdate(url, filename, onProgress) {
       }
     }
 
+    let fileStream = null
+
     function handleResponse(res) {
       // 处理重定向
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
@@ -422,14 +449,30 @@ function downloadUpdate(url, filename, onProgress) {
         return
       }
 
-      if (res.statusCode !== 200) {
-        fileStream.close()
+      // 206 = 断点续传成功，200 = 服务器不支持 Range（从头下载）
+      if (res.statusCode === 200) {
+        // 服务器返回完整文件，需要从头写入
+        existingSize = 0
+        fileStream = fs.createWriteStream(filePath)
+      } else if (res.statusCode === 206) {
+        // 断点续传，追加写入
+        fileStream = fs.createWriteStream(filePath, { flags: 'a' })
+      } else {
         reject(new Error(`下载失败: HTTP ${res.statusCode}`))
         return
       }
 
-      const total = parseInt(res.headers['content-length'] || '0', 10)
-      let downloaded = 0
+      // 计算总大小：206 时从 Content-Range 获取，200 时从 Content-Length 获取
+      let total = 0
+      if (res.statusCode === 206 && res.headers['content-range']) {
+        // Content-Range: bytes 1000-9999/10000
+        const match = res.headers['content-range'].match(/\/(\d+)/)
+        total = match ? parseInt(match[1], 10) : 0
+      } else {
+        total = parseInt(res.headers['content-length'] || '0', 10)
+      }
+
+      let downloaded = existingSize
 
       res.on('data', (chunk) => {
         downloaded += chunk.length
@@ -453,13 +496,25 @@ function downloadUpdate(url, filename, onProgress) {
         eventBus.emit(AppUpdateEvents.APP_DOWNLOAD_COMPLETE, { filePath })
         resolve(filePath)
       })
+
+      fileStream.on('error', (err) => {
+        fileStream.close()
+        reject(err)
+      })
     }
 
     const doDownload = (downloadUrl) => {
-      const parsed = new URL(downloadUrl)
       const requestHeaders = {
         'User-Agent': `claw-tool/${getCurrentAppVersion()}`,
       }
+
+      // 断点续传：添加 Range 头
+      if (existingSize > 0) {
+        requestHeaders['Range'] = `bytes=${existingSize}-`
+        console.log(`[应用更新] 断点续传，已下载 ${existingSize} 字节`)
+      }
+
+      const parsed = new URL(downloadUrl)
 
       if (
         proxyUrl &&
@@ -486,7 +541,6 @@ function downloadUpdate(url, filename, onProgress) {
         })
         connectReq.on('connect', (res, socket) => {
           if (res.statusCode !== 200) {
-            fileStream.close()
             reject(new Error(`代理 CONNECT 失败: ${res.statusCode}`))
             return
           }
@@ -504,18 +558,17 @@ function downloadUpdate(url, filename, onProgress) {
           )
           req.on('timeout', () => {
             req.destroy()
-            fileStream.close()
+            if (fileStream) fileStream.close()
             reject(new Error('下载超时'))
           })
           req.on('error', (err) => {
-            fileStream.close()
+            if (fileStream) fileStream.close()
             reject(err)
           })
           req.end()
         })
         connectReq.on('timeout', () => {
           connectReq.destroy()
-          fileStream.close()
           reject(new Error('代理连接超时'))
         })
         connectReq.on('error', () => {
@@ -530,14 +583,14 @@ function downloadUpdate(url, filename, onProgress) {
     }
 
     const doDirectDownload = (downloadUrl) => {
-      const parsed = new URL(downloadUrl)
-      const protocol = parsed.protocol === 'https:' ? https : http
+      const protocol = new URL(downloadUrl).protocol === 'https:' ? https : http
 
       const req = protocol.get(
         downloadUrl,
         {
           headers: {
             'User-Agent': `claw-tool/${getCurrentAppVersion()}`,
+            ...(existingSize > 0 ? { Range: `bytes=${existingSize}-` } : {}),
           },
           timeout: 300000,
         },
@@ -546,12 +599,12 @@ function downloadUpdate(url, filename, onProgress) {
 
       req.on('timeout', () => {
         req.destroy()
-        fileStream.close()
+        if (fileStream) fileStream.close()
         reject(new Error('下载超时'))
       })
 
       req.on('error', (err) => {
-        fileStream.close()
+        if (fileStream) fileStream.close()
         reject(err)
       })
     }
