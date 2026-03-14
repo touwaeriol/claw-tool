@@ -350,7 +350,108 @@ function downloadUpdate(url, filename, onProgress) {
     const filePath = path.join(tmpDir, filename)
     const fileStream = fs.createWriteStream(filePath)
 
+    // 检查代理配置
+    let proxyUrl = null
+    try {
+      const proxyManager = require('./proxy-manager')
+      proxyUrl = proxyManager.buildProxyUrl()
+    } catch { /* 代理模块不可用 */ }
+
+    function handleResponse(res) {
+      // 处理重定向
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        doDownload(res.headers.location)
+        return
+      }
+
+      if (res.statusCode !== 200) {
+        fileStream.close()
+        reject(new Error(`下载失败: HTTP ${res.statusCode}`))
+        return
+      }
+
+      const total = parseInt(res.headers['content-length'] || '0', 10)
+      let downloaded = 0
+
+      res.on('data', (chunk) => {
+        downloaded += chunk.length
+        const percent = total > 0 ? Math.round((downloaded / total) * 100) : 0
+
+        if (onProgress) {
+          onProgress({ downloaded, total, percent })
+        }
+
+        eventBus.emit(AppUpdateEvents.APP_DOWNLOAD_PROGRESS, {
+          downloaded,
+          total,
+          percent,
+        })
+      })
+
+      res.pipe(fileStream)
+
+      fileStream.on('finish', () => {
+        fileStream.close()
+        eventBus.emit(AppUpdateEvents.APP_DOWNLOAD_COMPLETE, { filePath })
+        resolve(filePath)
+      })
+    }
+
     const doDownload = (downloadUrl) => {
+      const parsed = new URL(downloadUrl)
+      const requestHeaders = {
+        'User-Agent': `claw-tool/${getCurrentAppVersion()}`,
+      }
+
+      if (proxyUrl && parsed.protocol === 'https:' && (proxyUrl.startsWith('http://') || proxyUrl.startsWith('https://'))) {
+        // 通过 HTTP CONNECT 代理隧道下载
+        const proxyParsed = new URL(proxyUrl)
+        const connectHeaders = {}
+        if (proxyParsed.username) {
+          connectHeaders['Proxy-Authorization'] = 'Basic ' + Buffer.from(
+            `${decodeURIComponent(proxyParsed.username)}:${decodeURIComponent(proxyParsed.password || '')}`
+          ).toString('base64')
+        }
+        const connectReq = http.request({
+          host: proxyParsed.hostname,
+          port: parseInt(proxyParsed.port),
+          method: 'CONNECT',
+          path: `${parsed.hostname}:${parsed.port || 443}`,
+          headers: connectHeaders,
+          timeout: 30000,
+        })
+        connectReq.on('connect', (res, socket) => {
+          if (res.statusCode !== 200) {
+            fileStream.close()
+            reject(new Error(`代理 CONNECT 失败: ${res.statusCode}`))
+            return
+          }
+          const req = https.request({
+            socket,
+            hostname: parsed.hostname,
+            path: parsed.pathname + parsed.search,
+            method: 'GET',
+            headers: requestHeaders,
+            servername: parsed.hostname,
+            timeout: 300000,
+          }, handleResponse)
+          req.on('timeout', () => { req.destroy(); fileStream.close(); reject(new Error('下载超时')) })
+          req.on('error', (err) => { fileStream.close(); reject(err) })
+          req.end()
+        })
+        connectReq.on('timeout', () => { connectReq.destroy(); fileStream.close(); reject(new Error('代理连接超时')) })
+        connectReq.on('error', () => {
+          // 代理失败时回退直连
+          console.warn('[应用更新] 下载代理失败，回退直连')
+          doDirectDownload(downloadUrl)
+        })
+        connectReq.end()
+      } else {
+        doDirectDownload(downloadUrl)
+      }
+    }
+
+    const doDirectDownload = (downloadUrl) => {
       const parsed = new URL(downloadUrl)
       const protocol = parsed.protocol === 'https:' ? https : http
 
@@ -358,46 +459,8 @@ function downloadUpdate(url, filename, onProgress) {
         headers: {
           'User-Agent': `claw-tool/${getCurrentAppVersion()}`,
         },
-        timeout: 30000,
-      }, (res) => {
-        // 处理重定向
-        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          doDownload(res.headers.location)
-          return
-        }
-
-        if (res.statusCode !== 200) {
-          fileStream.close()
-          reject(new Error(`下载失败: HTTP ${res.statusCode}`))
-          return
-        }
-
-        const total = parseInt(res.headers['content-length'] || '0', 10)
-        let downloaded = 0
-
-        res.on('data', (chunk) => {
-          downloaded += chunk.length
-          const percent = total > 0 ? Math.round((downloaded / total) * 100) : 0
-
-          if (onProgress) {
-            onProgress({ downloaded, total, percent })
-          }
-
-          eventBus.emit(AppUpdateEvents.APP_DOWNLOAD_PROGRESS, {
-            downloaded,
-            total,
-            percent,
-          })
-        })
-
-        res.pipe(fileStream)
-
-        fileStream.on('finish', () => {
-          fileStream.close()
-          eventBus.emit(AppUpdateEvents.APP_DOWNLOAD_COMPLETE, { filePath })
-          resolve(filePath)
-        })
-      })
+        timeout: 300000,
+      }, handleResponse)
 
       req.on('timeout', () => {
         req.destroy()
@@ -424,11 +487,13 @@ function launchInstaller(filePath) {
   const platform = process.platform
 
   if (platform === 'win32') {
-    // Windows：启动 .msi 安装包
+    // Windows：启动 .msi 安装包，然后退出应用以释放文件锁
     exec(`msiexec /i "${filePath}"`, { windowsHide: false })
+    setTimeout(() => { nw.App.quit() }, 1000)
   } else if (platform === 'darwin') {
-    // macOS：打开 .dmg
+    // macOS：打开 .dmg，然后退出应用
     exec(`open "${filePath}"`)
+    setTimeout(() => { nw.App.quit() }, 1000)
   }
 }
 
