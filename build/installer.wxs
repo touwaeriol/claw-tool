@@ -71,8 +71,9 @@
       <ComponentRef Id="DesktopShortcut" />
     </Feature>
 
-    <!-- UI：最小化界面（进度条） -->
-    <UIRef Id="WixUI_Minimal" />
+    <!-- UI：含目录选择的安装界面 -->
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <UIRef Id="WixUI_InstallDir" />
 
   </Product>
 </Wix>
