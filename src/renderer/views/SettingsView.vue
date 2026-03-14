@@ -372,7 +372,9 @@
   }
 
   /* 应用更新状态 */
+  const currentAppVersion = ref(appUpdater?.getCurrentAppVersion?.() || '0.0.0')
   const appUpdateChecking = ref(false)
+  const appUpdateChecked = ref(false)
   const appUpdateInfo = ref(null)
   const appDownloading = ref(false)
   const appDownloadPercent = ref(0)
@@ -387,6 +389,7 @@
     try {
       const result = await appUpdater.checkForAppUpdate()
       appUpdateInfo.value = result
+      appUpdateChecked.value = true
       if (result.hasUpdate) {
         ElMessage.success(`${t('settings.newVersionFound')}: ${result.latestVersion}`)
       } else {
@@ -456,13 +459,14 @@
     if (appUpdater?.getCachedRelease) {
       const cached = appUpdater.getCachedRelease()
       if (cached.release && cached.lastCheckTime > 0) {
-        const currentVersion = appUpdater.getCurrentAppVersion()
+        appUpdateChecked.value = true
+        const cv = appUpdater.getCurrentAppVersion()
         const tag = cached.release.tag_name
         const latestVersion = tag ? tag.replace(/^v/, '') : null
         if (latestVersion && appUpdater.findPlatformAsset) {
           const asset = appUpdater.findPlatformAsset(cached.release)
           // 简单比较版本号
-          const c = currentVersion.split('.').map(Number)
+          const c = cv.split('.').map(Number)
           const l = latestVersion.split('.').map(Number)
           let isNewer = false
           for (let i = 0; i < 3; i++) {
@@ -475,7 +479,7 @@
           if (isNewer) {
             appUpdateInfo.value = {
               hasUpdate: true,
-              currentVersion,
+              currentVersion: cv,
               latestVersion,
               releaseNotes: cached.release.body || '',
               asset,
@@ -617,6 +621,23 @@
       <!-- 更新设置 -->
       <el-tab-pane :label="$t('settings.updateSettings')" name="update">
         <el-form label-position="left" label-width="200px" class="tab-form">
+          <!-- 版本信息 -->
+          <el-form-item :label="$t('settings.currentVersion')">
+            <span class="version-value">v{{ currentAppVersion }}</span>
+            <template v-if="appUpdateInfo && appUpdateInfo.hasUpdate">
+              <el-tag type="warning" size="small" style="margin-left: 8px">{{
+                $t('settings.newVersionAvailable', { version: appUpdateInfo.latestVersion })
+              }}</el-tag>
+            </template>
+            <el-tag
+              v-else-if="appUpdateChecked && !appUpdateChecking"
+              type="success"
+              size="small"
+              style="margin-left: 8px"
+              >{{ $t('settings.latestVersion') }}</el-tag
+            >
+          </el-form-item>
+          <el-divider style="margin: 8px 0 16px" />
           <el-form-item :label="$t('settings.autoCheckOpenClaw')">
             <el-switch v-model="updateSettings.autoCheckOpenClaw" />
           </el-form-item>
@@ -929,6 +950,13 @@
     font-size: 12px;
     color: var(--ct-text-secondary);
     margin-top: 4px;
+  }
+
+  .version-value {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ct-text-primary);
+    font-family: 'Consolas', 'Monaco', monospace;
   }
 
   .action-row {
