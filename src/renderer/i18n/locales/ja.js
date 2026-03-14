@@ -360,7 +360,8 @@ export default {
     localOnly: 'ローカルのみ (127.0.0.1)',
     allInterfaces: 'すべてのインターフェース (0.0.0.0)',
     authToken: '認証トークン',
-    tokenHelp: 'すべての API リクエストに ?token=xxx パラメータまたは Authorization: Bearer xxx ヘッダーが必要',
+    tokenHelp:
+      'すべての API リクエストに ?token=xxx パラメータまたは Authorization: Bearer xxx ヘッダーが必要',
     regenerateToken: '再生成',
     accessUrl: 'アクセス URL',
     copyFullUrl: '完全な URL をコピー',
@@ -401,7 +402,8 @@ export default {
     channelStable: '安定版 (stable)',
     channelBeta: 'ベータ版 (beta)',
     useProxyForUpdate: 'プロキシ経由で更新',
-    useProxyForUpdateTip: '有効にすると、更新の確認とダウンロードにプロキシ設定のプロキシサーバーを使用します',
+    useProxyForUpdateTip:
+      '有効にすると、更新の確認とダウンロードにプロキシ設定のプロキシサーバーを使用します',
     manualCheckOpenClaw: 'OpenClaw の更新を確認',
     manualCheckApp: 'アプリの更新を確認',
     autoStartGateway: '起動時に Gateway を自動開始',
@@ -432,7 +434,8 @@ export default {
     clickToInstall: 'インストールをクリックして開始...',
     startInstall: 'インストール',
     installComplete: 'インストール完了',
-    installCompleteDesc: 'OpenClaw の準備が整いました。下のボタンをクリックしてメイン画面に入ります。',
+    installCompleteDesc:
+      'OpenClaw の準備が整いました。下のボタンをクリックしてメイン画面に入ります。',
     startUsing: '使い始める',
     skipWizard: 'ウィザードをスキップ',
   },

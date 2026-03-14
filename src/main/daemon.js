@@ -196,7 +196,10 @@ class DaemonManager {
       const unloadResult = await executor.exec(`launchctl unload "${plistPath}"`)
       // 删除 plist 文件
       await executor.exec(`rm -f "${plistPath}"`)
-      return { success: unloadResult.exitCode === 0, output: unloadResult.stdout + unloadResult.stderr }
+      return {
+        success: unloadResult.exitCode === 0,
+        output: unloadResult.stdout + unloadResult.stderr,
+      }
     }
   }
 

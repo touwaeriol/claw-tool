@@ -21,7 +21,7 @@ export const AUTH_METHODS = {
   'oauth-device': { label: 'OAuth Device Flow', description: '设备授权流程（浏览器登录）' },
   'oauth-pkce': { label: 'OAuth PKCE', description: 'OAuth PKCE 授权流程' },
   'aws-sdk': { label: 'AWS SDK', description: 'AWS Access Key + Secret Key + Region' },
-  'none': { label: '无需认证', description: '无需认证（本地服务）' },
+  none: { label: '无需认证', description: '无需认证（本地服务）' },
   'setup-token': { label: 'Setup Token', description: '粘贴 setup-token 认证' },
 }
 
@@ -66,7 +66,13 @@ export const PROVIDER_PRESETS = [
     envVar: 'ANTHROPIC_API_KEY',
     description: 'Anthropic Claude 系列模型',
     fields: [
-      { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: 'sk-ant-...' },
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        type: 'password',
+        required: true,
+        placeholder: 'sk-ant-...',
+      },
     ],
     defaultModels: ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
   },
@@ -80,7 +86,13 @@ export const PROVIDER_PRESETS = [
     envVar: 'ANTHROPIC_OAUTH_TOKEN',
     description: 'Anthropic setup-token 认证',
     fields: [
-      { key: 'token', label: 'Setup Token', type: 'password', required: true, placeholder: '粘贴 setup-token...' },
+      {
+        key: 'token',
+        label: 'Setup Token',
+        type: 'password',
+        required: true,
+        placeholder: '粘贴 setup-token...',
+      },
     ],
     defaultModels: ['claude-opus-4-6', 'claude-sonnet-4-6'],
   },
@@ -136,7 +148,13 @@ export const PROVIDER_PRESETS = [
     envVar: '',
     description: 'Copilot 本地代理',
     fields: [
-      { key: 'baseUrl', label: '代理地址', type: 'text', required: true, placeholder: 'http://localhost:1337' },
+      {
+        key: 'baseUrl',
+        label: '代理地址',
+        type: 'text',
+        required: true,
+        placeholder: 'http://localhost:1337',
+      },
     ],
     defaultModels: [],
   },
@@ -152,8 +170,20 @@ export const PROVIDER_PRESETS = [
     envVar: 'AWS_ACCESS_KEY_ID',
     description: 'AWS Bedrock 托管模型',
     fields: [
-      { key: 'accessKeyId', label: 'Access Key ID', type: 'password', required: true, placeholder: 'AKIA...' },
-      { key: 'secretAccessKey', label: 'Secret Access Key', type: 'password', required: true, placeholder: '' },
+      {
+        key: 'accessKeyId',
+        label: 'Access Key ID',
+        type: 'password',
+        required: true,
+        placeholder: 'AKIA...',
+      },
+      {
+        key: 'secretAccessKey',
+        label: 'Secret Access Key',
+        type: 'password',
+        required: true,
+        placeholder: '',
+      },
       { key: 'region', label: 'Region', type: 'text', required: true, placeholder: 'us-east-1' },
     ],
     defaultModels: ['anthropic.claude-sonnet-4-v2@us', 'anthropic.claude-haiku-4-5-v1@us'],
@@ -170,7 +200,13 @@ export const PROVIDER_PRESETS = [
     envVar: '',
     description: 'Ollama 本地模型',
     fields: [
-      { key: 'baseUrl', label: '服务地址', type: 'text', required: false, placeholder: 'http://localhost:11434' },
+      {
+        key: 'baseUrl',
+        label: '服务地址',
+        type: 'text',
+        required: false,
+        placeholder: 'http://localhost:11434',
+      },
     ],
     defaultModels: ['llama3.1', 'codellama', 'deepseek-coder-v2'],
   },
@@ -218,7 +254,13 @@ export const PROVIDER_PRESETS = [
     envVar: 'OPENROUTER_API_KEY',
     description: 'OpenRouter 多模型网关',
     fields: [
-      { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: 'sk-or-...' },
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        type: 'password',
+        required: true,
+        placeholder: 'sk-or-...',
+      },
     ],
     defaultModels: ['auto'],
   },
@@ -283,7 +325,13 @@ export const PROVIDER_PRESETS = [
     description: 'LiteLLM 统一网关（100+ 提供商）',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: false, placeholder: '' },
-      { key: 'baseUrl', label: '服务地址', type: 'text', required: false, placeholder: 'http://localhost:4000' },
+      {
+        key: 'baseUrl',
+        label: '服务地址',
+        type: 'text',
+        required: false,
+        placeholder: 'http://localhost:4000',
+      },
     ],
     defaultModels: ['claude-opus-4-6'],
   },
@@ -631,7 +679,13 @@ export const PROVIDER_PRESETS = [
     envVar: '',
     description: 'vLLM 本地/自托管 OpenAI 兼容服务',
     fields: [
-      { key: 'baseUrl', label: '服务地址', type: 'text', required: true, placeholder: 'http://localhost:8000/v1' },
+      {
+        key: 'baseUrl',
+        label: '服务地址',
+        type: 'text',
+        required: true,
+        placeholder: 'http://localhost:8000/v1',
+      },
       { key: 'model', label: '模型名称', type: 'text', required: true, placeholder: '' },
     ],
     defaultModels: [],
@@ -649,7 +703,13 @@ export const PROVIDER_PRESETS = [
     description: '任意 OpenAI/Anthropic 兼容端点',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: false, placeholder: '' },
-      { key: 'baseUrl', label: 'Base URL', type: 'text', required: true, placeholder: 'https://...' },
+      {
+        key: 'baseUrl',
+        label: 'Base URL',
+        type: 'text',
+        required: true,
+        placeholder: 'https://...',
+      },
       { key: 'model', label: '模型名称', type: 'text', required: true, placeholder: '' },
     ],
     defaultModels: [],
@@ -665,7 +725,11 @@ export const PROVIDER_GROUPS = [
   { id: 'AWS', label: 'AWS Bedrock', providers: ['bedrock'] },
   { id: 'xAI', label: 'xAI (Grok)', providers: ['xai'] },
   { id: 'Mistral', label: 'Mistral AI', providers: ['mistral'] },
-  { id: 'MiniMax', label: 'MiniMax', providers: ['minimax-portal', 'minimax-api', 'minimax-api-key-cn', 'minimax-api-lightning'] },
+  {
+    id: 'MiniMax',
+    label: 'MiniMax',
+    providers: ['minimax-portal', 'minimax-api', 'minimax-api-key-cn', 'minimax-api-lightning'],
+  },
   { id: 'Moonshot', label: 'Moonshot / Kimi', providers: ['moonshot', 'moonshot-cn', 'kimi-code'] },
   { id: '火山引擎', label: '火山引擎', providers: ['volcengine'] },
   { id: 'BytePlus', label: 'BytePlus', providers: ['byteplus'] },
@@ -674,7 +738,11 @@ export const PROVIDER_GROUPS = [
   { id: 'Hugging Face', label: 'Hugging Face', providers: ['huggingface'] },
   { id: 'Venice', label: 'Venice AI', providers: ['venice'] },
   { id: 'Qwen', label: '通义千问 (Qwen)', providers: ['qwen'] },
-  { id: 'Z.AI', label: 'Z.AI', providers: ['zai-coding-global', 'zai-coding-cn', 'zai-global', 'zai-cn'] },
+  {
+    id: 'Z.AI',
+    label: 'Z.AI',
+    providers: ['zai-coding-global', 'zai-coding-cn', 'zai-global', 'zai-cn'],
+  },
   { id: '千帆', label: '千帆 (Qianfan)', providers: ['qianfan'] },
   { id: 'Xiaomi', label: 'Xiaomi', providers: ['xiaomi'] },
   { id: 'Kilocode', label: 'Kilo Gateway', providers: ['kilocode'] },
@@ -698,18 +766,34 @@ export function getPresetById(id) {
 export function getDefaultFieldsForAuthMethod(method) {
   switch (method) {
     case 'api-key':
-      return [{ key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: '' }]
+      return [
+        { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: '' },
+      ]
     case 'oauth-device':
     case 'oauth-pkce':
       return []
     case 'aws-sdk':
       return [
-        { key: 'accessKeyId', label: 'Access Key ID', type: 'password', required: true, placeholder: '' },
-        { key: 'secretAccessKey', label: 'Secret Access Key', type: 'password', required: true, placeholder: '' },
+        {
+          key: 'accessKeyId',
+          label: 'Access Key ID',
+          type: 'password',
+          required: true,
+          placeholder: '',
+        },
+        {
+          key: 'secretAccessKey',
+          label: 'Secret Access Key',
+          type: 'password',
+          required: true,
+          placeholder: '',
+        },
         { key: 'region', label: 'Region', type: 'text', required: true, placeholder: 'us-east-1' },
       ]
     case 'setup-token':
-      return [{ key: 'token', label: 'Setup Token', type: 'password', required: true, placeholder: '' }]
+      return [
+        { key: 'token', label: 'Setup Token', type: 'password', required: true, placeholder: '' },
+      ]
     case 'none':
     default:
       return []

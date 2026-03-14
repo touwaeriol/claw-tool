@@ -3,13 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-
-// Mock json5
-vi.mock('json5', () => ({
-  default: JSON,
-  parse: JSON.parse,
-  stringify: JSON.stringify,
-}))
+import JSON5 from 'json5'
 
 const { ConfigManager } = await import('../../src/main/config-manager.js')
 
@@ -87,7 +81,7 @@ describe('ConfigManager', () => {
       await manager.writeConfig(newConfig)
 
       const writtenContent = executor.writeFile.mock.calls[0][1]
-      expect(JSON.parse(writtenContent)).toEqual({ test: true })
+      expect(JSON5.parse(writtenContent)).toEqual({ test: true })
     })
   })
 

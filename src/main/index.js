@@ -17,7 +17,7 @@ function init() {
   console.log('[主进程] Claw Tool 启动')
 
   // 加载代理配置
-  loadProxyConfig().catch(err => {
+  loadProxyConfig().catch((err) => {
     console.warn('[主进程] 加载代理配置失败:', err.message)
   })
 
@@ -26,7 +26,7 @@ function init() {
 
   // 创建并启动 Express HTTP 远程服务（端口 5678）
   createServer()
-  startServer().catch(err => {
+  startServer().catch((err) => {
     console.warn('[主进程] HTTP 远程服务启动失败:', err.message)
   })
 

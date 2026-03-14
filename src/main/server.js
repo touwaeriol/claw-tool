@@ -66,7 +66,7 @@ async function saveServerConfig() {
   await fs.writeFile(
     SERVER_CONFIG_FILE,
     JSON.stringify({ token: serverConfig.token, enabled: serverConfig.enabled }, null, 2),
-    'utf-8'
+    'utf-8',
   )
 }
 

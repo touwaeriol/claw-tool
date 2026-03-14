@@ -150,9 +150,7 @@ class SshExecutor {
     this._lastUsed = Date.now()
 
     // 如果指定了工作目录，则在命令前加 cd
-    const fullCommand = options.cwd
-      ? `cd ${JSON.stringify(options.cwd)} && ${command}`
-      : command
+    const fullCommand = options.cwd ? `cd ${JSON.stringify(options.cwd)} && ${command}` : command
 
     return new Promise((resolve, reject) => {
       const timeout = options.timeout || 60000
@@ -201,9 +199,7 @@ class SshExecutor {
     await this.connect()
     this._lastUsed = Date.now()
 
-    const fullCommand = options.cwd
-      ? `cd ${JSON.stringify(options.cwd)} && ${command}`
-      : command
+    const fullCommand = options.cwd ? `cd ${JSON.stringify(options.cwd)} && ${command}` : command
 
     return new Promise((resolve, reject) => {
       this._client.exec(fullCommand, (err, stream) => {

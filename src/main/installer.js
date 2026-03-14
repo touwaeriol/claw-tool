@@ -85,7 +85,9 @@ async function checkNode(executor) {
     try {
       const bundledNode = require('../shared/bundled-node')
       bundled = bundledNode.getBundledNodePaths().found
-    } catch { /* 忽略 */ }
+    } catch {
+      /* 忽略 */
+    }
 
     return { installed: true, version, meetsRequirement, bundled }
   } catch (err) {
@@ -293,7 +295,9 @@ async function installOpenClaw(executor, options = {}) {
     // 记录实际使用的 node/npm 路径
     const nodeInfo = await detectNodePaths(executor)
     if (nodeInfo.nodePath) {
-      emitLog(`使用 Node.js: ${nodeInfo.nodePath} (v${nodeInfo.nodeVersion || '未知'})${nodeInfo.bundled ? ' [内嵌]' : ''}`)
+      emitLog(
+        `使用 Node.js: ${nodeInfo.nodePath} (v${nodeInfo.nodeVersion || '未知'})${nodeInfo.bundled ? ' [内嵌]' : ''}`,
+      )
     }
     if (nodeInfo.npmPath) {
       emitLog(`使用 npm: ${nodeInfo.npmPath}`)
@@ -359,7 +363,9 @@ async function detectNodePaths(executor) {
   try {
     const bundledNode = require('../shared/bundled-node')
     bundled = bundledNode.getBundledNodePaths().found
-  } catch { /* 忽略 */ }
+  } catch {
+    /* 忽略 */
+  }
 
   let nodePath = null
   let npmPath = null
@@ -370,21 +376,27 @@ async function detectNodePaths(executor) {
     if (nodeResult.exitCode === 0) {
       nodePath = nodeResult.stdout.trim().split(/\r?\n/)[0]
     }
-  } catch { /* 忽略 */ }
+  } catch {
+    /* 忽略 */
+  }
 
   try {
     const npmResult = await executor.exec(`${whichCmd} npm`, { timeout: 5000 })
     if (npmResult.exitCode === 0) {
       npmPath = npmResult.stdout.trim().split(/\r?\n/)[0]
     }
-  } catch { /* 忽略 */ }
+  } catch {
+    /* 忽略 */
+  }
 
   try {
     const verResult = await executor.exec('node --version', { timeout: 5000 })
     if (verResult.exitCode === 0) {
       nodeVersion = verResult.stdout.trim().replace(/^v/, '')
     }
-  } catch { /* 忽略 */ }
+  } catch {
+    /* 忽略 */
+  }
 
   return { nodePath, npmPath, nodeVersion, bundled }
 }
@@ -488,7 +500,9 @@ async function downloadNodeInstaller(options = {}) {
         return { success: true, installerPath, version: nodeVersion }
       }
       if (existingSize > 0 && remoteSize > 0 && existingSize < remoteSize) {
-        emitLog(`发现未完成的下载 (${formatBytes(existingSize)}/${formatBytes(remoteSize)})，将断点续传`)
+        emitLog(
+          `发现未完成的下载 (${formatBytes(existingSize)}/${formatBytes(remoteSize)})，将断点续传`,
+        )
         onLog(`断点续传: 已下载 ${formatBytes(existingSize)}`)
       } else if (existingSize > 0) {
         fs.unlinkSync(installerPath)
@@ -496,12 +510,18 @@ async function downloadNodeInstaller(options = {}) {
       }
     }
 
-    emitLog(`开始下载 Node.js v${nodeVersion} ${filename} (${remoteSize > 0 ? formatBytes(remoteSize) : '未知大小'})`)
+    emitLog(
+      `开始下载 Node.js v${nodeVersion} ${filename} (${remoteSize > 0 ? formatBytes(remoteSize) : '未知大小'})`,
+    )
     onLog(`正在下载 Node.js v${nodeVersion} ${filename}...`)
 
     // 5. 获取代理配置
     let proxyManager = null
-    try { proxyManager = require('./proxy-manager') } catch { /* 代理模块不可用 */ }
+    try {
+      proxyManager = require('./proxy-manager')
+    } catch {
+      /* 代理模块不可用 */
+    }
     const proxyUrl = proxyManager ? proxyManager.buildProxyUrl() : null
 
     // 6. 下载（支持断点续传 + HTTP 代理）
@@ -518,7 +538,13 @@ async function downloadNodeInstaller(options = {}) {
             method: 'CONNECT',
             path: `${parsedUrl.hostname}:${parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80)}`,
             headers: proxyParsed.username
-              ? { 'Proxy-Authorization': 'Basic ' + Buffer.from(`${decodeURIComponent(proxyParsed.username)}:${decodeURIComponent(proxyParsed.password || '')}`).toString('base64') }
+              ? {
+                  'Proxy-Authorization':
+                    'Basic ' +
+                    Buffer.from(
+                      `${decodeURIComponent(proxyParsed.username)}:${decodeURIComponent(proxyParsed.password || '')}`,
+                    ).toString('base64'),
+                }
               : {},
           })
 
@@ -537,10 +563,13 @@ async function downloadNodeInstaller(options = {}) {
             if (resumeFrom > 0) {
               tlsOpts.headers['Range'] = `bytes=${resumeFrom}-`
             }
-            const tlsReq = https.get({
-              ...tlsOpts,
-              path: parsedUrl.pathname + parsedUrl.search,
-            }, (tlsRes) => handleResponse(tlsRes, resumeFrom, resolve, reject))
+            const tlsReq = https.get(
+              {
+                ...tlsOpts,
+                path: parsedUrl.pathname + parsedUrl.search,
+              },
+              (tlsRes) => handleResponse(tlsRes, resumeFrom, resolve, reject),
+            )
             tlsReq.on('error', reject)
           })
           connectReq.on('error', (err) => {
@@ -567,13 +596,15 @@ async function downloadNodeInstaller(options = {}) {
           reqOptions.headers['Range'] = `bytes=${resumeFrom}-`
         }
 
-        reqModule.get(reqOptions, (res) => {
-          if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-            doDownload(res.headers.location, resumeFrom)
-            return
-          }
-          handleResponse(res, resumeFrom, resolve, reject)
-        }).on('error', reject)
+        reqModule
+          .get(reqOptions, (res) => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+              doDownload(res.headers.location, resumeFrom)
+              return
+            }
+            handleResponse(res, resumeFrom, resolve, reject)
+          })
+          .on('error', reject)
       }
 
       function handleResponse(res, resumeFrom, resolve, reject) {
@@ -607,7 +638,11 @@ async function downloadNodeInstaller(options = {}) {
         })
 
         if (totalSize > 0 && startOffset > 0) {
-          onProgress(Math.round((startOffset / totalSize) * 100), formatBytes(startOffset), formatBytes(totalSize))
+          onProgress(
+            Math.round((startOffset / totalSize) * 100),
+            formatBytes(startOffset),
+            formatBytes(totalSize),
+          )
         }
 
         res.on('data', (chunk) => {
@@ -622,7 +657,11 @@ async function downloadNodeInstaller(options = {}) {
         res.on('end', () => {
           file.end(() => {
             if (totalSize > 0 && downloaded !== totalSize) {
-              reject(new Error(`下载不完整: 预期 ${formatBytes(totalSize)}，实际 ${formatBytes(downloaded)}`))
+              reject(
+                new Error(
+                  `下载不完整: 预期 ${formatBytes(totalSize)}，实际 ${formatBytes(downloaded)}`,
+                ),
+              )
               return
             }
             emitLog(`下载完成: ${installerPath} (${formatBytes(downloaded)})`)
@@ -702,7 +741,9 @@ function httpGet(url) {
         return
       }
       let data = ''
-      res.on('data', (chunk) => { data += chunk })
+      res.on('data', (chunk) => {
+        data += chunk
+      })
       res.on('end', () => resolve(data))
       res.on('error', reject)
     }).on('error', reject)
@@ -720,23 +761,26 @@ function getContentLength(url) {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(url)
     const reqModule = parsedUrl.protocol === 'https:' ? https : http
-    const req = reqModule.request({
-      method: 'HEAD',
-      hostname: parsedUrl.hostname,
-      port: parsedUrl.port,
-      path: parsedUrl.pathname + parsedUrl.search,
-    }, (res) => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        getContentLength(res.headers.location).then(resolve).catch(reject)
-        return
-      }
-      if (res.statusCode !== 200) {
-        reject(new Error(`HEAD 请求失败: ${res.statusCode}`))
-        return
-      }
-      const len = parseInt(res.headers['content-length'] || '0', 10)
-      resolve(len)
-    })
+    const req = reqModule.request(
+      {
+        method: 'HEAD',
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port,
+        path: parsedUrl.pathname + parsedUrl.search,
+      },
+      (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          getContentLength(res.headers.location).then(resolve).catch(reject)
+          return
+        }
+        if (res.statusCode !== 200) {
+          reject(new Error(`HEAD 请求失败: ${res.statusCode}`))
+          return
+        }
+        const len = parseInt(res.headers['content-length'] || '0', 10)
+        resolve(len)
+      },
+    )
     req.on('error', reject)
     req.end()
   })

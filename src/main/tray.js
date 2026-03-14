@@ -79,85 +79,103 @@ function buildMenu() {
   const menu = new nw.Menu()
 
   // 显示/隐藏窗口
-  menu.append(new nw.MenuItem({
-    label: '显示主窗口',
-    click: () => showWindow(),
-  }))
+  menu.append(
+    new nw.MenuItem({
+      label: '显示主窗口',
+      click: () => showWindow(),
+    }),
+  )
 
   menu.append(new nw.MenuItem({ type: 'separator' }))
 
   // Gateway 状态（只读显示）
-  menu.append(new nw.MenuItem({
-    label: `Gateway: ${getStatusLabel()}`,
-    enabled: false,
-  }))
+  menu.append(
+    new nw.MenuItem({
+      label: `Gateway: ${getStatusLabel()}`,
+      enabled: false,
+    }),
+  )
 
   menu.append(new nw.MenuItem({ type: 'separator' }))
 
   // Gateway 启停控制
-  menu.append(new nw.MenuItem({
-    label: '启动 Gateway',
-    click: () => {
-      eventBus.emit('tray:start-gateway')
-    },
-  }))
+  menu.append(
+    new nw.MenuItem({
+      label: '启动 Gateway',
+      click: () => {
+        eventBus.emit('tray:start-gateway')
+      },
+    }),
+  )
 
-  menu.append(new nw.MenuItem({
-    label: '停止 Gateway',
-    click: () => {
-      eventBus.emit('tray:stop-gateway')
-    },
-  }))
+  menu.append(
+    new nw.MenuItem({
+      label: '停止 Gateway',
+      click: () => {
+        eventBus.emit('tray:stop-gateway')
+      },
+    }),
+  )
 
-  menu.append(new nw.MenuItem({
-    label: '重启 Gateway',
-    click: () => {
-      eventBus.emit('tray:restart-gateway')
-    },
-  }))
+  menu.append(
+    new nw.MenuItem({
+      label: '重启 Gateway',
+      click: () => {
+        eventBus.emit('tray:restart-gateway')
+      },
+    }),
+  )
 
   // 更新提示
   if (openclawUpdateAvailable || appUpdateAvailable) {
     menu.append(new nw.MenuItem({ type: 'separator' }))
     if (openclawUpdateAvailable && openclawLatestVersion) {
-      menu.append(new nw.MenuItem({
-        label: `OpenClaw 有新版本: ${openclawLatestVersion}`,
-        click: () => showWindow(),
-      }))
+      menu.append(
+        new nw.MenuItem({
+          label: `OpenClaw 有新版本: ${openclawLatestVersion}`,
+          click: () => showWindow(),
+        }),
+      )
     }
     if (appUpdateAvailable && appLatestVersion) {
-      menu.append(new nw.MenuItem({
-        label: `Claw Tool 有新版本: ${appLatestVersion}`,
-        click: () => showWindow(),
-      }))
+      menu.append(
+        new nw.MenuItem({
+          label: `Claw Tool 有新版本: ${appLatestVersion}`,
+          click: () => showWindow(),
+        }),
+      )
     }
   }
 
   menu.append(new nw.MenuItem({ type: 'separator' }))
 
   // 检查更新
-  menu.append(new nw.MenuItem({
-    label: '检查更新',
-    click: () => {
-      showWindow()
-      eventBus.emit('tray:check-update')
-    },
-  }))
+  menu.append(
+    new nw.MenuItem({
+      label: '检查更新',
+      click: () => {
+        showWindow()
+        eventBus.emit('tray:check-update')
+      },
+    }),
+  )
 
   menu.append(new nw.MenuItem({ type: 'separator' }))
 
   // 退出
-  menu.append(new nw.MenuItem({
-    label: '退出 Claw Tool',
-    click: () => {
-      // 发送退出事件让主进程清理资源
-      eventBus.emit(Events.TRAY_QUIT)
-      // 延迟退出确保清理完成
-      setTimeout(() => {
-        nw.App.quit()
-      }, 500)
-    },
-  }))
+  menu.append(
+    new nw.MenuItem({
+      label: '退出 Claw Tool',
+      click: () => {
+        // 发送退出事件让主进程清理资源
+        eventBus.emit(Events.TRAY_QUIT)
+        // 延迟退出确保清理完成
+        setTimeout(() => {
+          nw.App.quit()
+        }, 500)
+      },
+    }),
+  )
 
   return menu
 }
@@ -167,9 +185,12 @@ function buildMenu() {
  */
 function getStatusLabel() {
   switch (currentStatus) {
-    case 'running': return '运行中'
-    case 'error': return '异常'
-    default: return '已停止'
+    case 'running':
+      return '运行中'
+    case 'error':
+      return '异常'
+    default:
+      return '已停止'
   }
 }
 

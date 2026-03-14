@@ -15,12 +15,16 @@ function getEnvWithProxy() {
   try {
     const { getEnhancedEnv } = require('../shared/bundled-node')
     Object.assign(env, getEnhancedEnv())
-  } catch { /* bundled-node 不可用时忽略 */ }
+  } catch {
+    /* bundled-node 不可用时忽略 */
+  }
   // 注入代理环境变量
   try {
     const { getProxyEnv } = require('./proxy-manager')
     Object.assign(env, getProxyEnv())
-  } catch { /* proxy-manager 不可用时忽略 */ }
+  } catch {
+    /* proxy-manager 不可用时忽略 */
+  }
   return env
 }
 

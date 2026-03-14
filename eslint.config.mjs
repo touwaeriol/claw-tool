@@ -1,5 +1,6 @@
 import js from '@eslint/js'
 import pluginVue from 'eslint-plugin-vue'
+import tsParser from '@typescript-eslint/parser'
 
 export default [
   // JavaScript 推荐规则
@@ -7,6 +8,16 @@ export default [
 
   // Vue 3 推荐规则
   ...pluginVue.configs['flat/recommended'],
+
+  // Vue 文件中 TypeScript 解析支持
+  {
+    files: ['**/*.vue'],
+    languageOptions: {
+      parserOptions: {
+        parser: tsParser,
+      },
+    },
+  },
 
   // 全局配置
   {

@@ -4,7 +4,7 @@
  * 通过 executor 抽象层支持本地和远程实例
  */
 
-const path = require('path')
+// const path = require('path')
 
 // 工作区相对路径
 const WORKSPACE_DIR = '.openclaw/workspace'

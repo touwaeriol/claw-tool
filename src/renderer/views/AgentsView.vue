@@ -1,8 +1,8 @@
 <script setup>
-/**
- * Agent 配置页面
- * 管理 Agent 绑定、模型选择、系统提示词等
- */
+  /**
+   * Agent 配置页面
+   * 管理 Agent 绑定、模型选择、系统提示词等
+   */
 </script>
 
 <template>
@@ -15,7 +15,7 @@
 </template>
 
 <style scoped>
-.agents-view {
-  padding: 20px;
-}
+  .agents-view {
+    padding: 20px;
+  }
 </style>

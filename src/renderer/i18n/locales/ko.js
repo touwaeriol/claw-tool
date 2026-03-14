@@ -401,7 +401,8 @@ export default {
     channelStable: '안정 (stable)',
     channelBeta: '베타 (beta)',
     useProxyForUpdate: '프록시를 통해 업데이트',
-    useProxyForUpdateTip: '활성화하면 업데이트 확인 및 다운로드 시 프록시 설정의 프록시 서버를 사용합니다',
+    useProxyForUpdateTip:
+      '활성화하면 업데이트 확인 및 다운로드 시 프록시 설정의 프록시 서버를 사용합니다',
     manualCheckOpenClaw: 'OpenClaw 업데이트 확인',
     manualCheckApp: '앱 업데이트 확인',
     autoStartGateway: '시작 시 Gateway 자동 실행',
@@ -432,7 +433,8 @@ export default {
     clickToInstall: '설치를 클릭하여 시작...',
     startInstall: '설치',
     installComplete: '설치 완료',
-    installCompleteDesc: 'OpenClaw이 준비되었습니다. 아래 버튼을 클릭하여 메인 화면으로 이동하세요.',
+    installCompleteDesc:
+      'OpenClaw이 준비되었습니다. 아래 버튼을 클릭하여 메인 화면으로 이동하세요.',
     startUsing: '시작하기',
     skipWizard: '마법사 건너뛰기',
   },

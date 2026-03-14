@@ -29,7 +29,7 @@ export const useServiceStore = defineStore('service', () => {
   // 是否开机自启
   const autoStartEnabled = ref(false)
   // 环境检测结果（缓存，避免切换页面重复检测）
-  const envCache = ref(null)  // { node, npm, openclaw }
+  const envCache = ref(null) // { node, npm, openclaw }
   // uptime 更新定时器
   let uptimeTimer = null
 

@@ -103,7 +103,7 @@ async function loadInstances() {
     const parsed = JSON.parse(data)
     const instances = parsed.instances || []
     // 确保本地实例始终存在
-    if (!instances.find(i => i.id === 'local')) {
+    if (!instances.find((i) => i.id === 'local')) {
       instances.unshift({ ...LOCAL_INSTANCE })
     }
     return instances
@@ -167,7 +167,7 @@ async function addInstance(config) {
 async function updateInstance(id, updates) {
   if (id === 'local') throw new Error('不能修改本地实例')
   const instances = await loadInstances()
-  const idx = instances.findIndex(i => i.id === id)
+  const idx = instances.findIndex((i) => i.id === id)
   if (idx === -1) throw new Error('实例不存在')
 
   // 如果更新了密码，重新加密
@@ -192,7 +192,7 @@ async function updateInstance(id, updates) {
 async function deleteInstance(id) {
   if (id === 'local') throw new Error('不能删除本地实例')
   const instances = await loadInstances()
-  const filtered = instances.filter(i => i.id !== id)
+  const filtered = instances.filter((i) => i.id !== id)
   await saveInstances(filtered)
 }
 

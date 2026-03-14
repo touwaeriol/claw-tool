@@ -60,9 +60,10 @@ export function getBackend() {
     const instancesMgrMod = safeRequire('src/main/instances-manager')
     const configMgrMod = safeRequire('src/main/config-manager')
     // 用 localExecutor 创建 ConfigManager 实例
-    const configManagerInstance = (configMgrMod?.ConfigManager && efMod?.localExecutor)
-      ? new configMgrMod.ConfigManager(efMod.localExecutor)
-      : null
+    const configManagerInstance =
+      configMgrMod?.ConfigManager && efMod?.localExecutor
+        ? new configMgrMod.ConfigManager(efMod.localExecutor)
+        : null
     const appUpdaterMod = safeRequire('src/main/updater-app')
     const openclawUpdaterMod = safeRequire('src/main/updater-openclaw')
     const providerAuthMod = safeRequire('src/main/provider-auth')
@@ -71,7 +72,11 @@ export function getBackend() {
 
     // npm 包
     let markdownIt = null
-    try { markdownIt = nw.require('markdown-it') } catch { /* optional */ }
+    try {
+      markdownIt = nw.require('markdown-it')
+    } catch {
+      /* optional */
+    }
 
     _cache = {
       // 核心

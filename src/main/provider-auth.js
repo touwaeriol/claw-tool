@@ -23,10 +23,7 @@ const os = require('os')
 function loadEnvFile() {
   try {
     // 尝试从项目根目录和 nw.App.dataPath 加载 .env
-    const candidates = [
-      path.join(process.cwd(), '.env'),
-      path.join(__dirname, '..', '..', '.env'),
-    ]
+    const candidates = [path.join(process.cwd(), '.env'), path.join(__dirname, '..', '..', '.env')]
     for (const envPath of candidates) {
       if (fs.existsSync(envPath)) {
         const content = fs.readFileSync(envPath, 'utf-8')
@@ -44,7 +41,9 @@ function loadEnvFile() {
         break
       }
     }
-  } catch { /* .env 不存在也不影响运行 */ }
+  } catch {
+    /* .env 不存在也不影响运行 */
+  }
 }
 loadEnvFile()
 
@@ -250,7 +249,9 @@ async function startGitHubCopilotAuth() {
   const intervalMs = Math.max(1000, interval * 1000)
 
   let _cancelled = false
-  const cancel = () => { _cancelled = true }
+  const cancel = () => {
+    _cancelled = true
+  }
 
   const promise = (async () => {
     const bodyBase = new URLSearchParams({
@@ -344,7 +345,9 @@ function _parseAuthorizationInput(input) {
       code: url.searchParams.get('code') || undefined,
       state: url.searchParams.get('state') || undefined,
     }
-  } catch { /* not a URL */ }
+  } catch {
+    /* not a URL */
+  }
   if (value.includes('code=')) {
     const params = new URLSearchParams(value)
     return {
@@ -400,10 +403,19 @@ function _startCallbackServer(port, callbackPath, expectedState) {
       resolve({
         server,
         port,
-        close: () => { try { server.close() } catch {} },
-        cancelWait: () => { cancelled = true },
+        close: () => {
+          try {
+            server.close()
+          } catch {
+            /* ignore */
+          }
+        },
+        cancelWait: () => {
+          cancelled = true
+        },
         waitForCode: async () => {
-          for (let i = 0; i < 1200; i++) { // 最多等 2 分钟
+          for (let i = 0; i < 1200; i++) {
+            // 最多等 2 分钟
             if (lastCode) return { code: lastCode }
             if (cancelled) return null
             await new Promise((r) => setTimeout(r, 100))
@@ -418,7 +430,13 @@ function _startCallbackServer(port, callbackPath, expectedState) {
       resolve({
         server,
         port,
-        close: () => { try { server.close() } catch {} },
+        close: () => {
+          try {
+            server.close()
+          } catch {
+            /* ignore */
+          }
+        },
         cancelWait: () => {},
         waitForCode: async () => null,
       })
@@ -489,7 +507,11 @@ async function startOpenAICodexAuth() {
       }
 
       const tokenJson = await tokenRes.json()
-      if (!tokenJson.access_token || !tokenJson.refresh_token || typeof tokenJson.expires_in !== 'number') {
+      if (
+        !tokenJson.access_token ||
+        !tokenJson.refresh_token ||
+        typeof tokenJson.expires_in !== 'number'
+      ) {
         throw new Error('OpenAI token response missing required fields')
       }
 
@@ -702,7 +724,9 @@ async function startGeminiCliAuth() {
           const userInfo = await userInfoRes.json()
           email = userInfo.email
         }
-      } catch { /* email is optional */ }
+      } catch {
+        /* email is optional */
+      }
 
       // 发现/配置 Cloud Code Assist 项目
       let projectId

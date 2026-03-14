@@ -1,42 +1,42 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Claw Tool</title>
-</head>
-<body>
-  <div id="app">正在加载...</div>
-  <script>
-    const fs = require('fs')
-    const path = require('path')
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Claw Tool</title>
+  </head>
+  <body>
+    <div id="app">正在加载...</div>
+    <script>
+      const fs = require('fs')
+      const path = require('path')
 
-    // 判断是否存在构建产物
-    const distIndex = path.join(nw.__dirname, 'dist', 'index.html')
-    const devServerUrl = 'http://localhost:5173'
+      // 判断是否存在构建产物
+      const distIndex = path.join(nw.__dirname, 'dist', 'index.html')
+      const devServerUrl = 'http://localhost:5173'
 
-    // 检查 dist/index.html 是否存在（生产模式）
-    if (fs.existsSync(distIndex)) {
-      // 生产模式：加载构建产物（从 src/main/ 上两级到项目根目录）
-      window.location.href = '../../dist/index.html'
-    } else {
-      // 开发模式：尝试连接 Vite dev server
-      fetch(devServerUrl)
-        .then(() => {
-          window.location.href = devServerUrl
-        })
-        .catch(() => {
-          document.getElementById('app').innerHTML =
-            '<div style="padding:40px;font-family:sans-serif;color:#666;">' +
-            '<h2>Claw Tool</h2>' +
-            '<p>请先启动 Vite 开发服务器：</p>' +
-            '<pre style="background:#f5f5f5;padding:12px;border-radius:6px;">npm run dev</pre>' +
-            '<p>或构建生产版本：</p>' +
-            '<pre style="background:#f5f5f5;padding:12px;border-radius:6px;">npm run build</pre>' +
-            '<p>然后重新启动应用。</p>' +
-            '</div>'
-        })
-    }
-  </script>
-</body>
+      // 检查 dist/index.html 是否存在（生产模式）
+      if (fs.existsSync(distIndex)) {
+        // 生产模式：加载构建产物（从 src/main/ 上两级到项目根目录）
+        window.location.href = '../../dist/index.html'
+      } else {
+        // 开发模式：尝试连接 Vite dev server
+        fetch(devServerUrl)
+          .then(() => {
+            window.location.href = devServerUrl
+          })
+          .catch(() => {
+            document.getElementById('app').innerHTML =
+              '<div style="padding:40px;font-family:sans-serif;color:#666;">' +
+              '<h2>Claw Tool</h2>' +
+              '<p>请先启动 Vite 开发服务器：</p>' +
+              '<pre style="background:#f5f5f5;padding:12px;border-radius:6px;">npm run dev</pre>' +
+              '<p>或构建生产版本：</p>' +
+              '<pre style="background:#f5f5f5;padding:12px;border-radius:6px;">npm run build</pre>' +
+              '<p>然后重新启动应用。</p>' +
+              '</div>'
+          })
+      }
+    </script>
+  </body>
 </html>

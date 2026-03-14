@@ -12,3 +12,5 @@ build/_wix_tmp/
 build/icons/
 CLAUDE.md
 .claude/
+src/renderer/auto-imports.d.ts
+src/renderer/components.d.ts

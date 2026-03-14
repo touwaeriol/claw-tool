@@ -1,56 +1,52 @@
 <script setup>
-/**
- * Markdown 编辑器组件
- * 左右分栏：左侧 textarea 编辑，右侧 Markdown 预览
- */
-import { ref, computed, watch } from 'vue'
-import { getBackend } from '../../utils/nw-bridge'
+  /**
+   * Markdown 编辑器组件
+   * 左右分栏：左侧 textarea 编辑，右侧 Markdown 预览
+   */
+  import { ref, computed, watch } from 'vue'
+  import { getBackend } from '../../utils/nw-bridge'
 
-const props = defineProps({
-  content: { type: String, default: '' },
-  readonly: { type: Boolean, default: false },
-  title: { type: String, default: '' },
-  saving: { type: Boolean, default: false },
-  showSave: { type: Boolean, default: true },
-})
+  const props = defineProps({
+    content: { type: String, default: '' },
+    readonly: { type: Boolean, default: false },
+    title: { type: String, default: '' },
+    saving: { type: Boolean, default: false },
+    showSave: { type: Boolean, default: true },
+  })
 
-const emit = defineEmits(['update:content', 'save'])
+  const emit = defineEmits(['update:content', 'save'])
 
-const backend = getBackend()
-const MarkdownIt = backend?.MarkdownIt ?? null
-const md = MarkdownIt ? new MarkdownIt({ html: false, linkify: true, breaks: true }) : null
+  const backend = getBackend()
+  const MarkdownIt = backend?.MarkdownIt ?? null
+  const md = MarkdownIt ? new MarkdownIt({ html: false, linkify: true, breaks: true }) : null
 
-const editContent = ref(props.content)
-const previewOnly = ref(props.readonly)
+  const editContent = ref(props.content)
+  const previewOnly = ref(props.readonly)
 
-watch(
-  () => props.content,
-  (val) => {
-    editContent.value = val
-  },
-)
+  watch(
+    () => props.content,
+    (val) => {
+      editContent.value = val
+    },
+  )
 
-const renderedHtml = computed(() => {
-  if (!md) return editContent.value || ''
-  try {
-    return md.render(editContent.value || '')
-  } catch {
-    return editContent.value || ''
+  const renderedHtml = computed(() => {
+    if (!md) return editContent.value || ''
+    try {
+      return md.render(editContent.value || '')
+    } catch {
+      return editContent.value || ''
+    }
+  })
+
+  function onInput(e) {
+    editContent.value = e.target.value
+    emit('update:content', editContent.value)
   }
-})
 
-function onInput(e) {
-  editContent.value = e.target.value
-  emit('update:content', editContent.value)
-}
-
-function handleSave() {
-  emit('save', editContent.value)
-}
-
-function togglePreview() {
-  previewOnly.value = !previewOnly.value
-}
+  function handleSave() {
+    emit('save', editContent.value)
+  }
 </script>
 
 <template>
@@ -118,167 +114,167 @@ function togglePreview() {
 </template>
 
 <style scoped>
-.md-editor {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  border: 1px solid var(--el-border-color);
-  border-radius: 4px;
-  overflow: hidden;
-}
+  .md-editor {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    border: 1px solid var(--el-border-color);
+    border-radius: 4px;
+    overflow: hidden;
+  }
 
-.md-editor-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 12px;
-  border-bottom: 1px solid var(--el-border-color);
-  background: var(--el-fill-color-light);
-  flex-shrink: 0;
-}
+  .md-editor-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--el-border-color);
+    background: var(--el-fill-color-light);
+    flex-shrink: 0;
+  }
 
-.md-editor-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-}
+  .md-editor-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+  }
 
-.md-editor-actions {
-  display: flex;
-  gap: 4px;
-}
+  .md-editor-actions {
+    display: flex;
+    gap: 4px;
+  }
 
-.md-editor-body {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
+  .md-editor-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
 
-.md-editor-pane {
-  flex: 1;
-  overflow: auto;
-  min-width: 0;
-}
+  .md-editor-pane {
+    flex: 1;
+    overflow: auto;
+    min-width: 0;
+  }
 
-.md-editor-pane.full {
-  flex: 1;
-}
+  .md-editor-pane.full {
+    flex: 1;
+  }
 
-.md-editor-divider {
-  width: 1px;
-  background: var(--el-border-color);
-  flex-shrink: 0;
-}
+  .md-editor-divider {
+    width: 1px;
+    background: var(--el-border-color);
+    flex-shrink: 0;
+  }
 
-.md-editor-textarea {
-  width: 100%;
-  height: 100%;
-  border: none;
-  outline: none;
-  resize: none;
-  padding: 12px;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  background: var(--el-bg-color);
-  color: var(--el-text-color-primary);
-  tab-size: 2;
-}
+  .md-editor-textarea {
+    width: 100%;
+    height: 100%;
+    border: none;
+    outline: none;
+    resize: none;
+    padding: 12px;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    background: var(--el-bg-color);
+    color: var(--el-text-color-primary);
+    tab-size: 2;
+  }
 
-.md-editor-preview {
-  padding: 12px 16px;
-  background: var(--el-bg-color);
-}
+  .md-editor-preview {
+    padding: 12px 16px;
+    background: var(--el-bg-color);
+  }
 
-/* Markdown 渲染样式 */
-.markdown-body {
-  font-size: 14px;
-  line-height: 1.7;
-  color: var(--el-text-color-primary);
-  word-wrap: break-word;
-}
+  /* Markdown 渲染样式 */
+  .markdown-body {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--el-text-color-primary);
+    word-wrap: break-word;
+  }
 
-.markdown-body :deep(h1) {
-  font-size: 1.6em;
-  margin: 0.5em 0;
-  padding-bottom: 0.3em;
-  border-bottom: 1px solid var(--el-border-color);
-}
+  .markdown-body :deep(h1) {
+    font-size: 1.6em;
+    margin: 0.5em 0;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid var(--el-border-color);
+  }
 
-.markdown-body :deep(h2) {
-  font-size: 1.3em;
-  margin: 0.5em 0;
-  padding-bottom: 0.2em;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-}
+  .markdown-body :deep(h2) {
+    font-size: 1.3em;
+    margin: 0.5em 0;
+    padding-bottom: 0.2em;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+  }
 
-.markdown-body :deep(h3) {
-  font-size: 1.1em;
-  margin: 0.5em 0;
-}
+  .markdown-body :deep(h3) {
+    font-size: 1.1em;
+    margin: 0.5em 0;
+  }
 
-.markdown-body :deep(p) {
-  margin: 0.5em 0;
-}
+  .markdown-body :deep(p) {
+    margin: 0.5em 0;
+  }
 
-.markdown-body :deep(code) {
-  background: var(--el-fill-color);
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 0.9em;
-  font-family: 'SFMono-Regular', Consolas, monospace;
-}
+  .markdown-body :deep(code) {
+    background: var(--el-fill-color);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.9em;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+  }
 
-.markdown-body :deep(pre) {
-  background: var(--el-fill-color);
-  padding: 12px;
-  border-radius: 4px;
-  overflow-x: auto;
-}
+  .markdown-body :deep(pre) {
+    background: var(--el-fill-color);
+    padding: 12px;
+    border-radius: 4px;
+    overflow-x: auto;
+  }
 
-.markdown-body :deep(pre code) {
-  background: none;
-  padding: 0;
-}
+  .markdown-body :deep(pre code) {
+    background: none;
+    padding: 0;
+  }
 
-.markdown-body :deep(ul),
-.markdown-body :deep(ol) {
-  padding-left: 1.5em;
-  margin: 0.5em 0;
-}
+  .markdown-body :deep(ul),
+  .markdown-body :deep(ol) {
+    padding-left: 1.5em;
+    margin: 0.5em 0;
+  }
 
-.markdown-body :deep(blockquote) {
-  margin: 0.5em 0;
-  padding: 0.5em 1em;
-  border-left: 4px solid var(--el-color-primary);
-  background: var(--el-fill-color-light);
-}
+  .markdown-body :deep(blockquote) {
+    margin: 0.5em 0;
+    padding: 0.5em 1em;
+    border-left: 4px solid var(--el-color-primary);
+    background: var(--el-fill-color-light);
+  }
 
-.markdown-body :deep(hr) {
-  border: none;
-  border-top: 1px solid var(--el-border-color);
-  margin: 1em 0;
-}
+  .markdown-body :deep(hr) {
+    border: none;
+    border-top: 1px solid var(--el-border-color);
+    margin: 1em 0;
+  }
 
-.markdown-body :deep(a) {
-  color: var(--el-color-primary);
-}
+  .markdown-body :deep(a) {
+    color: var(--el-color-primary);
+  }
 
-.markdown-body :deep(table) {
-  border-collapse: collapse;
-  width: 100%;
-  margin: 0.5em 0;
-}
+  .markdown-body :deep(table) {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0.5em 0;
+  }
 
-.markdown-body :deep(th),
-.markdown-body :deep(td) {
-  border: 1px solid var(--el-border-color);
-  padding: 6px 12px;
-}
+  .markdown-body :deep(th),
+  .markdown-body :deep(td) {
+    border: 1px solid var(--el-border-color);
+    padding: 6px 12px;
+  }
 
-.markdown-body :deep(th) {
-  background: var(--el-fill-color-light);
-  font-weight: 600;
-}
+  .markdown-body :deep(th) {
+    background: var(--el-fill-color-light);
+    font-weight: 600;
+  }
 </style>

@@ -49,18 +49,22 @@ class LocalExecutor {
       const bundledEnv = getBundledEnv()
       const pm = getProxyManager()
       const proxyEnv = pm ? pm.getProxyEnv() : {}
-      const child = exec(command, {
-        cwd: options.cwd,
-        timeout: options.timeout || 60000,
-        windowsHide: true,
-        env: { ...process.env, ...bundledEnv, ...proxyEnv, ...options.env },
-      }, (error, stdout, stderr) => {
-        resolve({
-          stdout: stdout || '',
-          stderr: stderr || '',
-          exitCode: error ? (error.code || 1) : 0,
-        })
-      })
+      const child = exec(
+        command,
+        {
+          cwd: options.cwd,
+          timeout: options.timeout || 60000,
+          windowsHide: true,
+          env: { ...process.env, ...bundledEnv, ...proxyEnv, ...options.env },
+        },
+        (error, stdout, stderr) => {
+          resolve({
+            stdout: stdout || '',
+            stderr: stderr || '',
+            exitCode: error ? error.code || 1 : 0,
+          })
+        },
+      )
     })
   }
 

@@ -1,20 +1,18 @@
 <script setup lang="ts">
-/**
- * 顶部栏组件
- * 包含实例选择器、服务状态指示和全局操作按钮
- */
-import { ref } from 'vue'
+  /**
+   * 顶部栏组件
+   * 包含实例选择器、服务状态指示和全局操作按钮
+   */
+  import { ref } from 'vue'
 
-/* 当前选中的实例 */
-const currentInstance = ref('local')
+  /* 当前选中的实例 */
+  const currentInstance = ref('local')
 
-/* 实例列表（placeholder） */
-const instances = ref([
-  { id: 'local', label: '本地实例', type: 'local', status: 'running' },
-])
+  /* 实例列表（placeholder） */
+  const instances = ref([{ id: 'local', label: '本地实例', type: 'local', status: 'running' }])
 
-/* 服务状态（placeholder） */
-const serviceRunning = ref(false)
+  /* 服务状态（placeholder） */
+  const serviceRunning = ref(false)
 </script>
 
 <template>
@@ -34,12 +32,7 @@ const serviceRunning = ref(false)
         placeholder="选择实例"
         size="default"
       >
-        <el-option
-          v-for="inst in instances"
-          :key="inst.id"
-          :label="inst.label"
-          :value="inst.id"
-        >
+        <el-option v-for="inst in instances" :key="inst.id" :label="inst.label" :value="inst.id">
           <div class="instance-option">
             <span
               class="status-dot"
@@ -72,65 +65,65 @@ const serviceRunning = ref(false)
 </template>
 
 <style scoped>
-.app-header {
-  height: var(--ct-header-height);
-  background: var(--ct-header-bg);
-  border-bottom: 1px solid var(--ct-border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-  flex-shrink: 0;
-  -webkit-app-region: drag; /* 允许拖动窗口 */
-}
+  .app-header {
+    height: var(--ct-header-height);
+    background: var(--ct-header-bg);
+    border-bottom: 1px solid var(--ct-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    flex-shrink: 0;
+    -webkit-app-region: drag; /* 允许拖动窗口 */
+  }
 
-/* 让交互元素不拦截拖动 */
-.app-header .el-select,
-.app-header .el-button,
-.app-header .instance-selector {
-  -webkit-app-region: no-drag;
-}
+  /* 让交互元素不拦截拖动 */
+  .app-header .el-select,
+  .app-header .el-button,
+  .app-header .instance-selector {
+    -webkit-app-region: no-drag;
+  }
 
-.header-left {
-  flex: 1;
-}
+  .header-left {
+    flex: 1;
+  }
 
-.page-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--ct-text-primary);
-}
+  .page-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ct-text-primary);
+  }
 
-.header-center {
-  flex: 0 0 auto;
-}
+  .header-center {
+    flex: 0 0 auto;
+  }
 
-.instance-selector {
-  width: 220px;
-}
+  .instance-selector {
+    width: 220px;
+  }
 
-.instance-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+  .instance-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
 
-.header-right {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-}
+  .header-right {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+  }
 
-.service-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
+  .service-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
 
-.status-text {
-  font-size: 12px;
-  color: var(--ct-text-secondary);
-}
+  .status-text {
+    font-size: 12px;
+    color: var(--ct-text-secondary);
+  }
 </style>

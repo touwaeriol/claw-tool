@@ -11,7 +11,11 @@ export const useInstanceStore = defineStore('instance', () => {
   const backend = getBackend()
   const instancesManager = backend?.instancesManager ?? null
   const executorFactory = backend
-    ? { getExecutor: backend.getExecutor, removeExecutor: backend.removeExecutor, localExecutor: backend.localExecutor }
+    ? {
+        getExecutor: backend.getExecutor,
+        removeExecutor: backend.removeExecutor,
+        localExecutor: backend.localExecutor,
+      }
     : null
 
   // 所有实例列表
@@ -27,7 +31,7 @@ export const useInstanceStore = defineStore('instance', () => {
 
   // 当前活跃的实例对象
   const activeInstance = computed(() => {
-    return instances.value.find(i => i.id === activeInstanceId.value) || instances.value[0]
+    return instances.value.find((i) => i.id === activeInstanceId.value) || instances.value[0]
   })
 
   /**
@@ -74,7 +78,7 @@ export const useInstanceStore = defineStore('instance', () => {
     if (executorFactory) {
       await executorFactory.removeExecutor(id)
     }
-    instances.value = instances.value.filter(i => i.id !== id)
+    instances.value = instances.value.filter((i) => i.id !== id)
     delete connectionStatus.value[id]
     // 如果删除的是当前活跃实例，切回本地
     if (activeInstanceId.value === id) {
@@ -103,7 +107,7 @@ export const useInstanceStore = defineStore('instance', () => {
    */
   async function connectInstance(id) {
     if (!instancesManager || !executorFactory) return
-    const instance = instances.value.find(i => i.id === id)
+    const instance = instances.value.find((i) => i.id === id)
     if (!instance || instance.type === 'local') return
 
     connectionStatus.value[id] = 'connecting'
@@ -135,7 +139,7 @@ export const useInstanceStore = defineStore('instance', () => {
   async function setActiveInstance(id) {
     activeInstanceId.value = id
     // 如果是 SSH 实例且未连接，自动连接
-    const instance = instances.value.find(i => i.id === id)
+    const instance = instances.value.find((i) => i.id === id)
     if (instance && instance.type === 'ssh' && connectionStatus.value[id] !== 'connected') {
       try {
         await connectInstance(id)

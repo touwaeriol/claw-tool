@@ -254,7 +254,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     try {
       const result = await workspaceManager.readSkillFile(slug, executor)
       currentSkillContent.value = result.content
-    } catch (err) {
+    } catch (_err) {
       currentSkillContent.value = ''
     } finally {
       currentSkillLoading.value = false

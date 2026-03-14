@@ -78,7 +78,9 @@ function getEnhancedEnv() {
     if (!fs.existsSync(globalPrefix)) {
       fs.mkdirSync(globalPrefix, { recursive: true })
     }
-  } catch { /* 忽略 */ }
+  } catch {
+    /* 忽略 */
+  }
 
   return {
     PATH: newPath,

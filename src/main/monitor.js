@@ -61,7 +61,7 @@ async function testGatewayPort(executor, port = 18789) {
     // 使用 curl 或 wget 测试端口
     const result = await executor.exec(
       `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:${port}/health 2>/dev/null || echo "fail"`,
-      { timeout: 5000 }
+      { timeout: 5000 },
     )
     const code = result.stdout.trim()
     return code !== 'fail' && code !== '' && code !== '000'

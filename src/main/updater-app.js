@@ -61,9 +61,12 @@ function loadSettings() {
       if (data.lastCheckTime) lastCheckTime = data.lastCheckTime
       if (data.autoCheckApp !== undefined) _updateSettings.autoCheckApp = data.autoCheckApp
       if (data.checkFrequency) _updateSettings.checkFrequency = data.checkFrequency
-      if (data.useProxyForUpdate !== undefined) _updateSettings.useProxyForUpdate = data.useProxyForUpdate
+      if (data.useProxyForUpdate !== undefined)
+        _updateSettings.useProxyForUpdate = data.useProxyForUpdate
     }
-  } catch { /* 首次运行无文件 */ }
+  } catch {
+    /* 首次运行无文件 */
+  }
 }
 
 /**
@@ -73,14 +76,24 @@ function saveSettings() {
   try {
     const dir = path.dirname(getSettingsPath())
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-    fs.writeFileSync(getSettingsPath(), JSON.stringify({
-      skippedVersion,
-      lastCheckTime,
-      autoCheckApp: _updateSettings.autoCheckApp,
-      checkFrequency: _updateSettings.checkFrequency,
-      useProxyForUpdate: _updateSettings.useProxyForUpdate,
-    }, null, 2), 'utf-8')
-  } catch { /* 忽略写入失败 */ }
+    fs.writeFileSync(
+      getSettingsPath(),
+      JSON.stringify(
+        {
+          skippedVersion,
+          lastCheckTime,
+          autoCheckApp: _updateSettings.autoCheckApp,
+          checkFrequency: _updateSettings.checkFrequency,
+          useProxyForUpdate: _updateSettings.useProxyForUpdate,
+        },
+        null,
+        2,
+      ),
+      'utf-8',
+    )
+  } catch {
+    /* 忽略写入失败 */
+  }
 }
 
 // 启动时加载设置
@@ -111,7 +124,7 @@ function httpsGet(url, options = {}) {
     const parsed = new URL(url)
     const headers = {
       'User-Agent': `claw-tool/${getCurrentAppVersion()}`,
-      'Accept': 'application/vnd.github.v3+json',
+      Accept: 'application/vnd.github.v3+json',
       ...options.headers,
     }
     const timeout = options.timeout || 15000
@@ -122,7 +135,9 @@ function httpsGet(url, options = {}) {
       try {
         const proxyManager = require('./proxy-manager')
         proxyUrl = proxyManager.buildProxyUrl()
-      } catch { /* 代理模块不可用 */ }
+      } catch {
+        /* 代理模块不可用 */
+      }
     }
 
     function handleResponse(res) {
@@ -131,7 +146,9 @@ function httpsGet(url, options = {}) {
         return
       }
       let body = ''
-      res.on('data', (chunk) => { body += chunk })
+      res.on('data', (chunk) => {
+        body += chunk
+      })
       res.on('end', () => resolve({ statusCode: res.statusCode, headers: res.headers, body }))
     }
 
@@ -140,9 +157,11 @@ function httpsGet(url, options = {}) {
       const proxyParsed = new URL(proxyUrl)
       const connectHeaders = {}
       if (proxyParsed.username) {
-        connectHeaders['Proxy-Authorization'] = 'Basic ' + Buffer.from(
-          `${decodeURIComponent(proxyParsed.username)}:${decodeURIComponent(proxyParsed.password || '')}`
-        ).toString('base64')
+        connectHeaders['Proxy-Authorization'] =
+          'Basic ' +
+          Buffer.from(
+            `${decodeURIComponent(proxyParsed.username)}:${decodeURIComponent(proxyParsed.password || '')}`,
+          ).toString('base64')
       }
       const connectReq = http.request({
         host: proxyParsed.hostname,
@@ -157,20 +176,29 @@ function httpsGet(url, options = {}) {
           reject(new Error(`代理 CONNECT 失败: ${res.statusCode}`))
           return
         }
-        const req = https.request({
-          socket,
-          hostname: parsed.hostname,
-          path: parsed.pathname + parsed.search,
-          method: 'GET',
-          headers,
-          servername: parsed.hostname,
-          timeout,
-        }, handleResponse)
-        req.on('timeout', () => { req.destroy(); reject(new Error('请求超时')) })
+        const req = https.request(
+          {
+            socket,
+            hostname: parsed.hostname,
+            path: parsed.pathname + parsed.search,
+            method: 'GET',
+            headers,
+            servername: parsed.hostname,
+            timeout,
+          },
+          handleResponse,
+        )
+        req.on('timeout', () => {
+          req.destroy()
+          reject(new Error('请求超时'))
+        })
         req.on('error', reject)
         req.end()
       })
-      connectReq.on('timeout', () => { connectReq.destroy(); reject(new Error('代理连接超时')) })
+      connectReq.on('timeout', () => {
+        connectReq.destroy()
+        reject(new Error('代理连接超时'))
+      })
       connectReq.on('error', (err) => {
         // 代理失败时回退直连
         console.warn('[应用更新] 代理连接失败，尝试直连:', err.message)
@@ -184,15 +212,21 @@ function httpsGet(url, options = {}) {
 }
 
 function directRequest(parsed, headers, timeout, handleResponse, resolve, reject) {
-  const req = https.request({
-    hostname: parsed.hostname,
-    port: parsed.port || 443,
-    path: parsed.pathname + parsed.search,
-    method: 'GET',
-    headers,
-    timeout,
-  }, handleResponse)
-  req.on('timeout', () => { req.destroy(); reject(new Error('请求超时')) })
+  const req = https.request(
+    {
+      hostname: parsed.hostname,
+      port: parsed.port || 443,
+      path: parsed.pathname + parsed.search,
+      method: 'GET',
+      headers,
+      timeout,
+    },
+    handleResponse,
+  )
+  req.on('timeout', () => {
+    req.destroy()
+    reject(new Error('请求超时'))
+  })
   req.on('error', reject)
   req.end()
 }
@@ -258,11 +292,19 @@ function getPlatformAssetPattern() {
     if (arch === 'arm64') {
       return { platform: 'win', arch: 'arm64', patterns: [/win.*arm64.*\.msi$/i, /arm64.*\.msi$/i] }
     }
-    return { platform: 'win', arch: 'x64', patterns: [/win.*x64.*\.msi$/i, /x64.*\.msi$/i, /\.msi$/i] }
+    return {
+      platform: 'win',
+      arch: 'x64',
+      patterns: [/win.*x64.*\.msi$/i, /x64.*\.msi$/i, /\.msi$/i],
+    }
   }
 
   if (platform === 'darwin') {
-    return { platform: 'mac', arch: 'arm64', patterns: [/mac.*arm64.*\.dmg$/i, /arm64.*\.dmg$/i, /\.dmg$/i] }
+    return {
+      platform: 'mac',
+      arch: 'arm64',
+      patterns: [/mac.*arm64.*\.dmg$/i, /arm64.*\.dmg$/i, /\.dmg$/i],
+    }
   }
 
   return { platform: 'unknown', arch, patterns: [] }
@@ -281,7 +323,7 @@ function findPlatformAsset(release) {
   const { patterns } = getPlatformAssetPattern()
 
   for (const pattern of patterns) {
-    const asset = release.assets.find(a => pattern.test(a.name))
+    const asset = release.assets.find((a) => pattern.test(a.name))
     if (asset) {
       return {
         name: asset.name,
@@ -311,7 +353,14 @@ async function checkForAppUpdate() {
 
   // 检查是否被用户跳过
   if (hasUpdate && skippedVersion === latestVersion) {
-    return { hasUpdate: false, currentVersion, latestVersion, releaseNotes: release.body || '', asset: null, skipped: true }
+    return {
+      hasUpdate: false,
+      currentVersion,
+      latestVersion,
+      releaseNotes: release.body || '',
+      asset: null,
+      skipped: true,
+    }
   }
 
   const asset = hasUpdate ? findPlatformAsset(release) : null
@@ -361,7 +410,9 @@ function downloadUpdate(url, filename, onProgress) {
       try {
         const proxyManager = require('./proxy-manager')
         proxyUrl = proxyManager.buildProxyUrl()
-      } catch { /* 代理模块不可用 */ }
+      } catch {
+        /* 代理模块不可用 */
+      }
     }
 
     function handleResponse(res) {
@@ -410,14 +461,20 @@ function downloadUpdate(url, filename, onProgress) {
         'User-Agent': `claw-tool/${getCurrentAppVersion()}`,
       }
 
-      if (proxyUrl && parsed.protocol === 'https:' && (proxyUrl.startsWith('http://') || proxyUrl.startsWith('https://'))) {
+      if (
+        proxyUrl &&
+        parsed.protocol === 'https:' &&
+        (proxyUrl.startsWith('http://') || proxyUrl.startsWith('https://'))
+      ) {
         // 通过 HTTP CONNECT 代理隧道下载
         const proxyParsed = new URL(proxyUrl)
         const connectHeaders = {}
         if (proxyParsed.username) {
-          connectHeaders['Proxy-Authorization'] = 'Basic ' + Buffer.from(
-            `${decodeURIComponent(proxyParsed.username)}:${decodeURIComponent(proxyParsed.password || '')}`
-          ).toString('base64')
+          connectHeaders['Proxy-Authorization'] =
+            'Basic ' +
+            Buffer.from(
+              `${decodeURIComponent(proxyParsed.username)}:${decodeURIComponent(proxyParsed.password || '')}`,
+            ).toString('base64')
         }
         const connectReq = http.request({
           host: proxyParsed.hostname,
@@ -433,20 +490,34 @@ function downloadUpdate(url, filename, onProgress) {
             reject(new Error(`代理 CONNECT 失败: ${res.statusCode}`))
             return
           }
-          const req = https.request({
-            socket,
-            hostname: parsed.hostname,
-            path: parsed.pathname + parsed.search,
-            method: 'GET',
-            headers: requestHeaders,
-            servername: parsed.hostname,
-            timeout: 300000,
-          }, handleResponse)
-          req.on('timeout', () => { req.destroy(); fileStream.close(); reject(new Error('下载超时')) })
-          req.on('error', (err) => { fileStream.close(); reject(err) })
+          const req = https.request(
+            {
+              socket,
+              hostname: parsed.hostname,
+              path: parsed.pathname + parsed.search,
+              method: 'GET',
+              headers: requestHeaders,
+              servername: parsed.hostname,
+              timeout: 300000,
+            },
+            handleResponse,
+          )
+          req.on('timeout', () => {
+            req.destroy()
+            fileStream.close()
+            reject(new Error('下载超时'))
+          })
+          req.on('error', (err) => {
+            fileStream.close()
+            reject(err)
+          })
           req.end()
         })
-        connectReq.on('timeout', () => { connectReq.destroy(); fileStream.close(); reject(new Error('代理连接超时')) })
+        connectReq.on('timeout', () => {
+          connectReq.destroy()
+          fileStream.close()
+          reject(new Error('代理连接超时'))
+        })
         connectReq.on('error', () => {
           // 代理失败时回退直连
           console.warn('[应用更新] 下载代理失败，回退直连')
@@ -462,12 +533,16 @@ function downloadUpdate(url, filename, onProgress) {
       const parsed = new URL(downloadUrl)
       const protocol = parsed.protocol === 'https:' ? https : http
 
-      const req = protocol.get(downloadUrl, {
-        headers: {
-          'User-Agent': `claw-tool/${getCurrentAppVersion()}`,
+      const req = protocol.get(
+        downloadUrl,
+        {
+          headers: {
+            'User-Agent': `claw-tool/${getCurrentAppVersion()}`,
+          },
+          timeout: 300000,
         },
-        timeout: 300000,
-      }, handleResponse)
+        handleResponse,
+      )
 
       req.on('timeout', () => {
         req.destroy()
@@ -496,11 +571,15 @@ function launchInstaller(filePath) {
   if (platform === 'win32') {
     // Windows：启动 .msi 安装包，然后退出应用以释放文件锁
     exec(`msiexec /i "${filePath}"`, { windowsHide: false })
-    setTimeout(() => { nw.App.quit() }, 1000)
+    setTimeout(() => {
+      nw.App.quit()
+    }, 1000)
   } else if (platform === 'darwin') {
     // macOS：打开 .dmg，然后退出应用
     exec(`open "${filePath}"`)
-    setTimeout(() => { nw.App.quit() }, 1000)
+    setTimeout(() => {
+      nw.App.quit()
+    }, 1000)
   }
 }
 
@@ -528,11 +607,16 @@ function getCachedRelease() {
  */
 function getCheckIntervalMs(freq) {
   switch (freq) {
-    case 'startup': return 0  // 仅启动时
-    case 'daily': return 24 * 60 * 60 * 1000
-    case 'weekly': return 7 * 24 * 60 * 60 * 1000
-    case 'monthly': return 30 * 24 * 60 * 60 * 1000
-    default: return 24 * 60 * 60 * 1000
+    case 'startup':
+      return 0 // 仅启动时
+    case 'daily':
+      return 24 * 60 * 60 * 1000
+    case 'weekly':
+      return 7 * 24 * 60 * 60 * 1000
+    case 'monthly':
+      return 30 * 24 * 60 * 60 * 1000
+    default:
+      return 24 * 60 * 60 * 1000
   }
 }
 
@@ -556,19 +640,26 @@ function startAutoCheck() {
   // 延迟 10 秒首次检查
   setTimeout(async () => {
     if (shouldCheck()) {
-      try { await checkForAppUpdate() } catch (err) {
+      try {
+        await checkForAppUpdate()
+      } catch (err) {
         console.warn('[应用更新] 自动检查失败:', err.message)
       }
     }
 
     // 设置定时轮询（每小时检查一次是否到时间）
-    autoCheckTimer = setInterval(async () => {
-      if (shouldCheck()) {
-        try { await checkForAppUpdate() } catch (err) {
-          console.warn('[应用更新] 自动检查失败:', err.message)
+    autoCheckTimer = setInterval(
+      async () => {
+        if (shouldCheck()) {
+          try {
+            await checkForAppUpdate()
+          } catch (err) {
+            console.warn('[应用更新] 自动检查失败:', err.message)
+          }
         }
-      }
-    }, 60 * 60 * 1000) // 每小时轮询一次
+      },
+      60 * 60 * 1000,
+    ) // 每小时轮询一次
   }, 10000)
 }
 
@@ -587,9 +678,11 @@ function stopAutoCheck() {
  * @param {object} newSettings - { autoCheckApp, checkFrequency }
  */
 function updateSettings(newSettings) {
-  if (newSettings.autoCheckApp !== undefined) _updateSettings.autoCheckApp = newSettings.autoCheckApp
+  if (newSettings.autoCheckApp !== undefined)
+    _updateSettings.autoCheckApp = newSettings.autoCheckApp
   if (newSettings.checkFrequency) _updateSettings.checkFrequency = newSettings.checkFrequency
-  if (newSettings.useProxyForUpdate !== undefined) _updateSettings.useProxyForUpdate = newSettings.useProxyForUpdate
+  if (newSettings.useProxyForUpdate !== undefined)
+    _updateSettings.useProxyForUpdate = newSettings.useProxyForUpdate
   saveSettings()
 
   // 根据新设置重启或停止自动检查
