@@ -639,7 +639,12 @@
                   >符合要求</el-tag
                 >
                 <el-tag v-else type="danger" size="small">版本过低，需要 >= 22.12.0</el-tag>
-                <el-tag v-if="env.node.bundled" type="warning" size="small">内置</el-tag>
+                <el-tag v-if="env.node.nodeSource === 'system'" type="success" size="small"
+                  >系统</el-tag
+                >
+                <el-tag v-else-if="env.node.nodeSource === 'bundled'" type="warning" size="small"
+                  >内置</el-tag
+                >
               </span>
               <span class="env-item-path" v-if="env.node.nodePath">{{ env.node.nodePath }}</span>
               <span class="env-item-detail text-danger" v-else>未安装</span>

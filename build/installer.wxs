@@ -66,6 +66,24 @@
                        Type="string"
                        Value="{{APP_VERSION}}" />
       </Component>
+
+      <!-- 将内置 Node.js 目录添加到系统 PATH（Part="last" 放末尾，不干扰已有 Node.js） -->
+      <!-- 卸载时自动移除（Permanent="no"） -->
+      <Component Id="BundledNodePath" Guid="b2c3d4e5-6f7a-8b9c-0d1e-f2a3b4c5d6e7">
+        <Environment Id="PATH_BUNDLED_NODE"
+                     Name="PATH"
+                     Value="[INSTALLFOLDER]node"
+                     Permanent="no"
+                     Part="last"
+                     Action="set"
+                     System="yes" />
+        <RegistryValue Root="HKLM"
+                       Key="Software\{{APP_NAME}}"
+                       Name="PathEnv"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
     </DirectoryRef>
 
     <!-- 应用图标（用于快捷方式和控制面板） -->
@@ -103,6 +121,7 @@
       <ComponentRef Id="StartMenuShortcut" />
       <ComponentRef Id="DesktopShortcut" />
       <ComponentRef Id="InstallDirRegistry" />
+      <ComponentRef Id="BundledNodePath" />
     </Feature>
 
     <!-- UI：含目录选择的安装界面 -->

@@ -80,12 +80,14 @@ async function checkNode(executor) {
       emitProgress('node-check', 'failed', `v${version}，需要 >= ${MIN_NODE_VERSION}`)
     }
 
-    // 检测是否使用 bundled node 及路径
+    // 检测 node 来源：系统安装 / 内置兜底
     let bundled = false
+    let systemNode = false
     let nodePath = null
     try {
       const bundledNode = require('../shared/bundled-node')
       bundled = bundledNode.getBundledNodePaths().found
+      systemNode = bundledNode.hasSystemNode()
     } catch {
       /* 忽略 */
     }
@@ -100,7 +102,10 @@ async function checkNode(executor) {
       /* 忽略 */
     }
 
-    return { installed: true, version, meetsRequirement, bundled, nodePath }
+    // nodeSource: 'system' = 使用系统 node, 'bundled' = 使用内置 node
+    const nodeSource = systemNode ? 'system' : bundled ? 'bundled' : 'unknown'
+
+    return { installed: true, version, meetsRequirement, bundled, systemNode, nodeSource, nodePath }
   } catch (err) {
     emitLog(`Node.js 检测失败: ${err.message}`, 'error')
     emitProgress('node-check', 'failed', err.message)

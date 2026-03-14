@@ -1,6 +1,14 @@
 /**
  * 内嵌 Node.js 路径发现模块
  * 检测应用安装目录中的 bundled Node.js，构造 PATH 和环境变量
+ *
+ * 优先级策略：
+ *   1. 系统已安装的 Node.js（用户自行安装的）
+ *   2. 内置 Node.js（作为兜底，放在 PATH 末尾）
+ *
+ * 这样可以：
+ *   - 兼容用户已有的 Node.js + OpenClaw 环境
+ *   - 没有系统 Node.js 时自动 fallback 到内置版本
  */
 
 const path = require('path')
@@ -9,6 +17,7 @@ const os = require('os')
 
 // 缓存结果，避免重复检测
 let _cached = null
+let _hasSystemNode = null
 
 /**
  * 检测 bundled Node.js 的路径
@@ -44,6 +53,37 @@ function getBundledNodePaths() {
 }
 
 /**
+ * 检测系统是否已安装 Node.js（不含内置版本）
+ * 遍历原始 PATH 中的目录，查找 node 可执行文件
+ * @returns {boolean}
+ */
+function hasSystemNode() {
+  if (_hasSystemNode !== null) return _hasSystemNode
+
+  const bundled = getBundledNodePaths()
+  const currentPath = process.env.PATH || process.env.Path || ''
+  const dirs = currentPath.split(path.delimiter)
+  const nodeExe = process.platform === 'win32' ? 'node.exe' : 'node'
+
+  for (const dir of dirs) {
+    if (!dir) continue
+    // 跳过内置 node 所在目录
+    if (bundled.found && path.resolve(dir) === path.resolve(bundled.nodeDir)) continue
+    try {
+      if (fs.existsSync(path.join(dir, nodeExe))) {
+        _hasSystemNode = true
+        return true
+      }
+    } catch {
+      /* 忽略不可访问的目录 */
+    }
+  }
+
+  _hasSystemNode = false
+  return false
+}
+
+/**
  * 获取 npm 全局安装前缀目录（用户可写）
  * @returns {string}
  */
@@ -62,35 +102,52 @@ function getGlobalBinDir() {
 
 /**
  * 获取增强的环境变量（PATH + NPM_CONFIG_PREFIX）
+ *
+ * 策略：
+ *   - 系统有 Node.js → 内置 node 放 PATH 末尾（兜底），不设 NPM_CONFIG_PREFIX
+ *   - 系统无 Node.js → 内置 node 放 PATH 末尾，设 NPM_CONFIG_PREFIX 避免权限问题
+ *
  * @returns {object} 需要注入的环境变量
  */
 function getEnhancedEnv() {
   const bundled = getBundledNodePaths()
   if (!bundled.found) return {}
 
-  const globalPrefix = getGlobalPrefix()
+  const systemNodeExists = hasSystemNode()
   const globalBin = getGlobalBinDir()
   const currentPath = process.env.PATH || process.env.Path || ''
-  const newPath = `${bundled.nodeDir}${path.delimiter}${globalBin}${path.delimiter}${currentPath}`
 
-  // 确保全局前缀目录存在
-  try {
-    if (!fs.existsSync(globalPrefix)) {
-      fs.mkdirSync(globalPrefix, { recursive: true })
-    }
-  } catch {
-    /* 忽略 */
-  }
+  // 内置 node 放在 PATH 末尾，系统 node 优先
+  // globalBin 加入 PATH 保证向后兼容（之前通过内置 node 安装的 openclaw 仍可找到）
+  const newPath = `${currentPath}${path.delimiter}${globalBin}${path.delimiter}${bundled.nodeDir}`
 
-  return {
+  const env = {
     PATH: newPath,
     Path: newPath,
-    NPM_CONFIG_PREFIX: globalPrefix,
   }
+
+  // 仅在没有系统 Node.js 时设置自定义 npm 全局前缀
+  // 有系统 Node.js 时让 npm 使用默认位置（通常已在系统 PATH 中）
+  if (!systemNodeExists) {
+    const globalPrefix = getGlobalPrefix()
+    env.NPM_CONFIG_PREFIX = globalPrefix
+
+    // 确保全局前缀目录存在
+    try {
+      if (!fs.existsSync(globalPrefix)) {
+        fs.mkdirSync(globalPrefix, { recursive: true })
+      }
+    } catch {
+      /* 忽略 */
+    }
+  }
+
+  return env
 }
 
 module.exports = {
   getBundledNodePaths,
+  hasSystemNode,
   getGlobalPrefix,
   getGlobalBinDir,
   getEnhancedEnv,

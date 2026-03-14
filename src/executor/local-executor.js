@@ -49,8 +49,13 @@ class LocalExecutor {
       const bundledEnv = getBundledEnv()
       const pm = getProxyManager()
       const proxyEnv = pm ? pm.getProxyEnv() : {}
+
+      // Windows 下强制 UTF-8 代码页，避免中文乱码
+      const isWin = process.platform === 'win32'
+      const actualCommand = isWin ? `chcp 65001 >nul && ${command}` : command
+
       const child = exec(
-        command,
+        actualCommand,
         {
           cwd: options.cwd,
           timeout: options.timeout || 60000,
@@ -80,7 +85,9 @@ class LocalExecutor {
     return new Promise((resolve, reject) => {
       const isWin = process.platform === 'win32'
       const shell = isWin ? 'cmd.exe' : '/bin/sh'
-      const shellArgs = isWin ? ['/c', command] : ['-c', command]
+      // Windows 下强制 UTF-8 代码页，避免中文乱码
+      const actualCommand = isWin ? `chcp 65001 >nul && ${command}` : command
+      const shellArgs = isWin ? ['/c', actualCommand] : ['-c', actualCommand]
 
       // 注入 bundled node 路径和代理环境变量
       const bundledEnv = getBundledEnv()
