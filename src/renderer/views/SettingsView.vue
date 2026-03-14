@@ -114,12 +114,15 @@
     proxyTestResult.value = null
   }
 
+  // eventBus（用于通知主进程设置变更）
+  const eventBus = backend?.eventBus ?? null
+
   /* 应用设置 */
   const settings = ref({
     theme: appStore.theme || 'dark',
     language: appStore.locale || 'zh-CN',
     autoStart: false,
-    minimizeToTray: true,
+    minimizeToTray: localStorage.getItem('claw-tool-minimize-to-tray') !== 'false',
     autoStartGateway: false,
     remoteTestEnabled: false,
     remoteTestPort: 18790,
@@ -332,11 +335,23 @@
     localStorage.setItem('claw-tool-locale', lang)
   }
 
+  /* 监听 minimizeToTray 开关变更，实时同步到主进程 */
+  watch(
+    () => settings.value.minimizeToTray,
+    (val) => {
+      localStorage.setItem('claw-tool-minimize-to-tray', String(val))
+      if (eventBus) eventBus.emit('settings:minimize-to-tray', val)
+    },
+  )
+
   /* 保存应用设置 */
   function handleSave() {
     appStore.changeTheme(settings.value.theme)
     appStore.locale = settings.value.language
     i18nLocale.value = settings.value.language
+    // 持久化系统行为设置
+    localStorage.setItem('claw-tool-minimize-to-tray', String(settings.value.minimizeToTray))
+    if (eventBus) eventBus.emit('settings:minimize-to-tray', settings.value.minimizeToTray)
     ElMessage.success(t('settings.settingsSaved'))
   }
 
@@ -438,7 +453,6 @@
   }
 
   /* 监听主进程自动检查到的更新事件 */
-  const eventBus = backend?.eventBus ?? null
   let _updateListener = null
 
   onMounted(() => {

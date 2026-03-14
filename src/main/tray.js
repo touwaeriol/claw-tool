@@ -9,6 +9,8 @@ const { eventBus, Events } = require('../shared/ipc')
 let tray = null
 // 当前服务状态：'running' | 'stopped' | 'error'
 let currentStatus = 'stopped'
+// 关闭时是否最小化到托盘（默认 true）
+let _minimizeToTray = true
 // OpenClaw 是否有可用更新
 let openclawUpdateAvailable = false
 let openclawLatestVersion = ''
@@ -66,7 +68,12 @@ function initTray() {
     if (tray) tray.menu = buildMenu()
   })
 
-  // 拦截窗口关闭事件，最小化到托盘而非退出
+  // 监听最小化到托盘设置变更
+  eventBus.on('settings:minimize-to-tray', (value) => {
+    _minimizeToTray = value
+  })
+
+  // 拦截窗口关闭事件，根据设置决定最小化到托盘还是退出
   setupCloseToTray()
 
   console.log('[托盘] 系统托盘已初始化')
@@ -234,7 +241,9 @@ function hideWindow() {
 }
 
 /**
- * 设置关闭窗口时最小化到托盘
+ * 设置关闭窗口时根据用户设置决定行为
+ * - minimizeToTray = true → 隐藏窗口到托盘（后台运行）
+ * - minimizeToTray = false → 退出应用
  */
 function setupCloseToTray() {
   if (typeof nw === 'undefined') return
@@ -243,10 +252,25 @@ function setupCloseToTray() {
   if (!win) return
 
   win.on('close', function () {
-    // 最小化到托盘而非退出
-    hideWindow()
-    // 注意：不调用 this.close(true)，这样窗口只是隐藏
+    if (_minimizeToTray) {
+      // 最小化到托盘，后台继续运行
+      hideWindow()
+    } else {
+      // 真正退出应用
+      eventBus.emit(Events.TRAY_QUIT)
+      setTimeout(() => {
+        nw.App.quit()
+      }, 500)
+    }
   })
+}
+
+/**
+ * 设置是否关闭时最小化到托盘
+ * @param {boolean} value
+ */
+function setMinimizeToTray(value) {
+  _minimizeToTray = value
 }
 
 /**
@@ -273,4 +297,5 @@ module.exports = {
   updateTrayStatus,
   showWindow,
   hideWindow,
+  setMinimizeToTray,
 }
