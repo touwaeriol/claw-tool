@@ -15,8 +15,8 @@ app.use(createPinia())
 app.use(router)
 app.use(i18n)
 
-// 初始化主题（从 localStorage 读取，默认暗色）
-const savedTheme = localStorage.getItem('claw-tool-theme') || 'dark'
+// 初始化主题（从 localStorage 读取，默认跟随系统）
+const savedTheme = localStorage.getItem('claw-tool-theme') || 'system'
 initTheme(savedTheme)
 
 app.mount('#app')

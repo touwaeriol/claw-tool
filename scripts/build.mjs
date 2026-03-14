@@ -41,7 +41,7 @@ const ROOT = resolve(__dirname, '..')
 const NW_VERSION = '0.96.0'
 
 /** 内嵌 Node.js 版本 */
-const EMBEDDED_NODE_VERSION = '22.22.1'
+const EMBEDDED_NODE_VERSION = '24.14.0'
 
 /** 源图标路径 */
 const ICON_SRC = resolve(ROOT, '.image', 'claw-tool-icon.png')

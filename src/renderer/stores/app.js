@@ -15,7 +15,7 @@ export const useAppStore = defineStore('app', () => {
   // OpenClaw 版本
   const openclawVersion = ref(null)
   // 主题模式：'light' | 'dark' | 'system'
-  const theme = ref(localStorage.getItem('claw-tool-theme') || 'dark')
+  const theme = ref(localStorage.getItem('claw-tool-theme') || 'system')
   // 语言
   const locale = ref(localStorage.getItem('claw-tool-locale') || 'zh-CN')
 

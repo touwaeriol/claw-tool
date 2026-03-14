@@ -61,6 +61,6 @@ export function setTheme(mode) {
  * 初始化主题（应用启动时调用）
  * @param {'light' | 'dark' | 'system'} mode 存储的主题模式
  */
-export function initTheme(mode = 'dark') {
+export function initTheme(mode = 'system') {
   setTheme(mode)
 }

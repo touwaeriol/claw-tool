@@ -179,12 +179,12 @@ async function getNodeInstallGuide(executor) {
       methods: [
         {
           name: 'Homebrew（推荐）',
-          command: 'brew install node@22 && brew link node@22 --force --overwrite',
+          command: 'brew install node@24 && brew link node@24 --force --overwrite',
           description: '使用 Homebrew 包管理器安装',
         },
         {
           name: '官方安装包',
-          url: 'https://nodejs.org/dist/latest-v22.x/',
+          url: 'https://nodejs.org/dist/latest-v24.x/',
           description: '下载 .pkg 安装包手动安装',
         },
       ],
@@ -197,12 +197,12 @@ async function getNodeInstallGuide(executor) {
     methods: [
       {
         name: '官方安装包（推荐）',
-        url: 'https://nodejs.org/dist/latest-v22.x/',
+        url: 'https://nodejs.org/dist/latest-v24.x/',
         description: '下载 .msi 安装包，双击运行即可',
       },
       {
         name: 'nvm-windows',
-        command: 'nvm install 22',
+        command: 'nvm install 24',
         url: 'https://github.com/coreybutler/nvm-windows',
         description: '使用 nvm-windows 版本管理器安装',
       },
@@ -227,9 +227,9 @@ async function installNode(executor, method, options = {}) {
   try {
     let command
     if (method === 'brew') {
-      command = 'brew install node@22 && brew link node@22 --force --overwrite'
+      command = 'brew install node@24 && brew link node@24 --force --overwrite'
     } else if (method === 'nvm') {
-      command = 'nvm install 22 && nvm use 22'
+      command = 'nvm install 24 && nvm use 24'
     } else {
       throw new Error(`不支持的安装方式: ${method}`)
     }
@@ -290,6 +290,15 @@ async function installOpenClaw(executor, options = {}) {
   const onLog = options.onLog || (() => {})
 
   try {
+    // 记录实际使用的 node/npm 路径
+    const nodeInfo = await detectNodePaths(executor)
+    if (nodeInfo.nodePath) {
+      emitLog(`使用 Node.js: ${nodeInfo.nodePath} (v${nodeInfo.nodeVersion || '未知'})${nodeInfo.bundled ? ' [内嵌]' : ''}`)
+    }
+    if (nodeInfo.npmPath) {
+      emitLog(`使用 npm: ${nodeInfo.npmPath}`)
+    }
+
     let command = 'npm install -g openclaw@latest'
     if (options.registry) {
       command += ` --registry=${options.registry}`
@@ -326,7 +335,7 @@ async function installOpenClaw(executor, options = {}) {
     if (check.installed) {
       emitLog(`OpenClaw ${check.version} 安装成功！`)
       emitProgress('openclaw-install', 'success', check.version)
-      return { success: true, version: check.version }
+      return { success: true, version: check.version, nodeInfo }
     }
 
     throw new Error('安装完成但验证失败')
@@ -335,6 +344,49 @@ async function installOpenClaw(executor, options = {}) {
     emitProgress('openclaw-install', 'failed', err.message)
     return { success: false, error: err.message }
   }
+}
+
+/**
+ * 检测当前环境中实际使用的 node/npm 路径
+ * @param {object} executor - 执行器实例
+ * @returns {Promise<{nodePath: string|null, npmPath: string|null, nodeVersion: string|null, bundled: boolean}>}
+ */
+async function detectNodePaths(executor) {
+  const isWin = process.platform === 'win32'
+  const whichCmd = isWin ? 'where' : 'which'
+  let bundled = false
+
+  try {
+    const bundledNode = require('../shared/bundled-node')
+    bundled = bundledNode.getBundledNodePaths().found
+  } catch { /* 忽略 */ }
+
+  let nodePath = null
+  let npmPath = null
+  let nodeVersion = null
+
+  try {
+    const nodeResult = await executor.exec(`${whichCmd} node`, { timeout: 5000 })
+    if (nodeResult.exitCode === 0) {
+      nodePath = nodeResult.stdout.trim().split(/\r?\n/)[0]
+    }
+  } catch { /* 忽略 */ }
+
+  try {
+    const npmResult = await executor.exec(`${whichCmd} npm`, { timeout: 5000 })
+    if (npmResult.exitCode === 0) {
+      npmPath = npmResult.stdout.trim().split(/\r?\n/)[0]
+    }
+  } catch { /* 忽略 */ }
+
+  try {
+    const verResult = await executor.exec('node --version', { timeout: 5000 })
+    if (verResult.exitCode === 0) {
+      nodeVersion = verResult.stdout.trim().replace(/^v/, '')
+    }
+  } catch { /* 忽略 */ }
+
+  return { nodePath, npmPath, nodeVersion, bundled }
 }
 
 /**
@@ -392,7 +444,7 @@ async function downloadNodeInstaller(options = {}) {
     onLog(`使用 ${mirror.label}`)
 
     // 1. 获取最新 v22.x 版本号
-    const indexUrl = `${mirrorBase}/latest-v22.x/`
+    const indexUrl = `${mirrorBase}/latest-v24.x/`
     const html = await httpGet(indexUrl)
 
     // macOS pkg 文件名格式: node-v22.x.x.pkg (不含架构，通用包)
@@ -413,7 +465,7 @@ async function downloadNodeInstaller(options = {}) {
 
     const filename = match[0]
     const nodeVersion = match[1]
-    const downloadUrl = `${mirrorBase}/latest-v22.x/${filename}`
+    const downloadUrl = `${mirrorBase}/latest-v24.x/${filename}`
 
     // 2. 准备下载目录（用户下载目录）
     const downloadsDir = path.join(os.homedir(), 'Downloads')
@@ -762,4 +814,5 @@ module.exports = {
   downloadNodeMsi, // 兼容别名
   detectRegion,
   getRecommendedRegistry,
+  detectNodePaths,
 }
