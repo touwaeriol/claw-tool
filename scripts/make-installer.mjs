@@ -128,8 +128,8 @@ function makeWindowsInstaller(arch) {
   const light = `${wixPrefix}light.exe"`
   const heat = `${wixPrefix}heat.exe"`
 
-  // 确定主可执行文件名
-  const exeName = 'claw-tool.exe'
+  // 确定主可执行文件名（nw-builder 使用 app.name，即 "Claw Tool"）
+  const exeName = 'Claw Tool.exe'
 
   // 查找 .ico 图标文件
   const icoPath = resolve(BUILD_DIR, 'icons', 'icon.ico')
