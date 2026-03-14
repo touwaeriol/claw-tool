@@ -1,6 +1,6 @@
 {
   "name": "claw-tool",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "OpenClaw 图形化管理工具",
   "license": "MIT",
   "main": "dist/index.html",
