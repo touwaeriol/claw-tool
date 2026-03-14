@@ -442,6 +442,8 @@ export default {
     updateChannel: 'Update channel',
     channelStable: 'Stable',
     channelBeta: 'Beta',
+    useProxyForUpdate: 'Use proxy for updates',
+    useProxyForUpdateTip: 'When enabled, update checks and downloads will use the proxy from proxy settings',
     manualCheckOpenClaw: 'Check OpenClaw updates',
     manualCheckApp: 'Check app updates',
     autoStartGateway: 'Auto-start Gateway on launch',

@@ -133,6 +133,7 @@ const updateSettings = ref({
   autoCheckApp: true,
   checkFrequency: 'daily',
   updateChannel: 'stable',
+  useProxyForUpdate: false,
 })
 
 // 加载后端持久化的更新设置
@@ -140,12 +141,13 @@ if (appUpdater?.getUpdateSettings) {
   const saved = appUpdater.getUpdateSettings()
   updateSettings.value.autoCheckApp = saved.autoCheckApp
   updateSettings.value.checkFrequency = saved.checkFrequency
+  if (saved.useProxyForUpdate !== undefined) updateSettings.value.useProxyForUpdate = saved.useProxyForUpdate
 }
 
 // 监听更新设置变更，同步到后端
-watch(() => [updateSettings.value.autoCheckApp, updateSettings.value.checkFrequency], ([autoCheck, freq]) => {
+watch(() => [updateSettings.value.autoCheckApp, updateSettings.value.checkFrequency, updateSettings.value.useProxyForUpdate], ([autoCheck, freq, useProxy]) => {
   if (appUpdater?.updateSettings) {
-    appUpdater.updateSettings({ autoCheckApp: autoCheck, checkFrequency: freq })
+    appUpdater.updateSettings({ autoCheckApp: autoCheck, checkFrequency: freq, useProxyForUpdate: useProxy })
   }
 })
 
@@ -596,6 +598,10 @@ onUnmounted(() => {
               <el-radio value="stable">{{ $t('settings.channelStable') }}</el-radio>
               <el-radio value="beta">{{ $t('settings.channelBeta') }}</el-radio>
             </el-radio-group>
+          </el-form-item>
+          <el-form-item :label="$t('settings.useProxyForUpdate')">
+            <el-switch v-model="updateSettings.useProxyForUpdate" />
+            <span style="margin-left: 8px; font-size: 12px; color: #909399">{{ $t('settings.useProxyForUpdateTip') }}</span>
           </el-form-item>
           <el-form-item>
             <div class="action-row">

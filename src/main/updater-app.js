@@ -39,6 +39,7 @@ let autoCheckTimer = null
 let _updateSettings = {
   autoCheckApp: true,
   checkFrequency: 'daily', // startup | daily | weekly | monthly
+  useProxyForUpdate: false, // 是否使用代理下载更新
 }
 
 /**
@@ -60,6 +61,7 @@ function loadSettings() {
       if (data.lastCheckTime) lastCheckTime = data.lastCheckTime
       if (data.autoCheckApp !== undefined) _updateSettings.autoCheckApp = data.autoCheckApp
       if (data.checkFrequency) _updateSettings.checkFrequency = data.checkFrequency
+      if (data.useProxyForUpdate !== undefined) _updateSettings.useProxyForUpdate = data.useProxyForUpdate
     }
   } catch { /* 首次运行无文件 */ }
 }
@@ -76,6 +78,7 @@ function saveSettings() {
       lastCheckTime,
       autoCheckApp: _updateSettings.autoCheckApp,
       checkFrequency: _updateSettings.checkFrequency,
+      useProxyForUpdate: _updateSettings.useProxyForUpdate,
     }, null, 2), 'utf-8')
   } catch { /* 忽略写入失败 */ }
 }
@@ -113,12 +116,14 @@ function httpsGet(url, options = {}) {
     }
     const timeout = options.timeout || 15000
 
-    // 检查代理配置
+    // 仅在用户开启"使用代理下载更新"时使用代理
     let proxyUrl = null
-    try {
-      const proxyManager = require('./proxy-manager')
-      proxyUrl = proxyManager.buildProxyUrl()
-    } catch { /* 代理模块不可用 */ }
+    if (_updateSettings.useProxyForUpdate) {
+      try {
+        const proxyManager = require('./proxy-manager')
+        proxyUrl = proxyManager.buildProxyUrl()
+      } catch { /* 代理模块不可用 */ }
+    }
 
     function handleResponse(res) {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
@@ -350,12 +355,14 @@ function downloadUpdate(url, filename, onProgress) {
     const filePath = path.join(tmpDir, filename)
     const fileStream = fs.createWriteStream(filePath)
 
-    // 检查代理配置
+    // 仅在用户开启"使用代理下载更新"时使用代理
     let proxyUrl = null
-    try {
-      const proxyManager = require('./proxy-manager')
-      proxyUrl = proxyManager.buildProxyUrl()
-    } catch { /* 代理模块不可用 */ }
+    if (_updateSettings.useProxyForUpdate) {
+      try {
+        const proxyManager = require('./proxy-manager')
+        proxyUrl = proxyManager.buildProxyUrl()
+      } catch { /* 代理模块不可用 */ }
+    }
 
     function handleResponse(res) {
       // 处理重定向
@@ -582,6 +589,7 @@ function stopAutoCheck() {
 function updateSettings(newSettings) {
   if (newSettings.autoCheckApp !== undefined) _updateSettings.autoCheckApp = newSettings.autoCheckApp
   if (newSettings.checkFrequency) _updateSettings.checkFrequency = newSettings.checkFrequency
+  if (newSettings.useProxyForUpdate !== undefined) _updateSettings.useProxyForUpdate = newSettings.useProxyForUpdate
   saveSettings()
 
   // 根据新设置重启或停止自动检查

@@ -458,6 +458,8 @@ export default {
     updateChannel: '更新通道',
     channelStable: '稳定版 (stable)',
     channelBeta: '测试版 (beta)',
+    useProxyForUpdate: '使用代理下载更新',
+    useProxyForUpdateTip: '开启后检查和下载更新将通过代理设置中的代理服务器',
     manualCheckOpenClaw: '检查 OpenClaw 更新',
     manualCheckApp: '检查应用更新',
     // 系统行为补充

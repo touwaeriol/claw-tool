@@ -381,6 +381,8 @@ export default {
     updateChannel: '更新チャンネル',
     channelStable: '安定版 (stable)',
     channelBeta: 'ベータ版 (beta)',
+    useProxyForUpdate: 'プロキシ経由で更新',
+    useProxyForUpdateTip: '有効にすると、更新の確認とダウンロードにプロキシ設定のプロキシサーバーを使用します',
     manualCheckOpenClaw: 'OpenClaw の更新を確認',
     manualCheckApp: 'アプリの更新を確認',
     autoStartGateway: '起動時に Gateway を自動開始',
