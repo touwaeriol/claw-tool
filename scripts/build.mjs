@@ -22,6 +22,7 @@
 import { execSync } from 'child_process'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import https from 'https'
 import {
   existsSync,
   mkdirSync,
@@ -30,6 +31,8 @@ import {
   writeFileSync,
   rmSync,
   readdirSync,
+  createWriteStream,
+  unlinkSync,
 } from 'fs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -77,10 +80,10 @@ function resolveTargets() {
   const arch = getFlagValue('arch')
 
   if (platform && arch) {
-    const target = BUILD_TARGETS.find(t => t.platform === platform && t.arch === arch)
+    const target = BUILD_TARGETS.find((t) => t.platform === platform && t.arch === arch)
     if (!target) {
       console.error(`错误：不支持的构建目标 ${platform}-${arch}`)
-      console.error('支持的目标：', BUILD_TARGETS.map(t => `${t.platform}-${t.arch}`).join(', '))
+      console.error('支持的目标：', BUILD_TARGETS.map((t) => `${t.platform}-${t.arch}`).join(', '))
       process.exit(1)
     }
     return [target]
@@ -89,7 +92,7 @@ function resolveTargets() {
   // 自动检测当前平台
   const currentPlatform = process.platform === 'darwin' ? 'osx' : 'win'
   const currentArch = process.arch === 'arm64' ? 'arm64' : 'x64'
-  const target = BUILD_TARGETS.find(t => t.platform === currentPlatform && t.arch === currentArch)
+  const target = BUILD_TARGETS.find((t) => t.platform === currentPlatform && t.arch === currentArch)
   return [target || BUILD_TARGETS[0]]
 }
 
@@ -108,6 +111,46 @@ function run(cmd, options = {}) {
 
 function ensureDir(dir) {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+}
+
+/**
+ * 下载文件（支持重定向，使用 Node.js 原生 https 模块）
+ */
+function downloadFile(url, dest) {
+  return new Promise((resolve, reject) => {
+    const file = createWriteStream(dest)
+    https
+      .get(url, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          file.close()
+          unlinkSync(dest)
+          downloadFile(res.headers.location, dest).then(resolve).catch(reject)
+          return
+        }
+        if (res.statusCode !== 200) {
+          file.close()
+          reject(new Error(`HTTP ${res.statusCode}`))
+          return
+        }
+        const total = parseInt(res.headers['content-length'] || '0', 10)
+        let downloaded = 0
+        res.on('data', (chunk) => {
+          downloaded += chunk.length
+          const pct = total > 0 ? Math.round((downloaded / total) * 100) : 0
+          process.stdout.write(`\r  下载进度: ${pct}%`)
+        })
+        res.pipe(file)
+        file.on('finish', () => {
+          file.close()
+          console.log('')
+          resolve()
+        })
+      })
+      .on('error', (err) => {
+        file.close()
+        reject(err)
+      })
+  })
 }
 
 function copyDir(src, dest, label) {
@@ -136,17 +179,9 @@ function buildRenderer() {
 function copyMainProcess() {
   step('步骤 2/5: 复制主进程和共享代码')
 
-  copyDir(
-    resolve(ROOT, 'src', 'main'),
-    resolve(DIST_DIR, 'main'),
-    'src/main/ → dist/main/',
-  )
+  copyDir(resolve(ROOT, 'src', 'main'), resolve(DIST_DIR, 'main'), 'src/main/ → dist/main/')
 
-  copyDir(
-    resolve(ROOT, 'src', 'shared'),
-    resolve(DIST_DIR, 'shared'),
-    'src/shared/ → dist/shared/',
-  )
+  copyDir(resolve(ROOT, 'src', 'shared'), resolve(DIST_DIR, 'shared'), 'src/shared/ → dist/shared/')
 
   // executor 和 instances 模块（如果存在）
   copyDir(
@@ -226,11 +261,7 @@ async function generateDistManifest() {
     dependencies: srcPkg.dependencies || {},
   }
 
-  writeFileSync(
-    resolve(DIST_DIR, 'package.json'),
-    JSON.stringify(distPkg, null, 2),
-    'utf-8',
-  )
+  writeFileSync(resolve(DIST_DIR, 'package.json'), JSON.stringify(distPkg, null, 2), 'utf-8')
   console.log('  已生成: dist/package.json')
 }
 
@@ -283,7 +314,8 @@ async function packTarget(target) {
       CFBundleVersion: distPkg.version || '0.1.0',
       CFBundleShortVersionString: distPkg.version || '0.1.0',
       NSHumanReadableCopyright: `Copyright © 2024-2026 Claw Tool. MIT License.`,
-      NSLocalNetworkUsageDescription: 'Claw Tool needs local network access to communicate with OpenClaw gateway.',
+      NSLocalNetworkUsageDescription:
+        'Claw Tool needs local network access to communicate with OpenClaw gateway.',
     },
   }
 
@@ -325,38 +357,7 @@ async function embedNodePortable(target) {
     console.log(`  已缓存: ${archiveName}`)
   } else {
     console.log(`  下载: ${nodeUrl}`)
-    run(`node -e "
-      const https = require('https');
-      const fs = require('fs');
-      function download(url, dest) {
-        return new Promise((resolve, reject) => {
-          const file = fs.createWriteStream(dest);
-          https.get(url, (res) => {
-            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-              file.close();
-              fs.unlinkSync(dest);
-              download(res.headers.location, dest).then(resolve).catch(reject);
-              return;
-            }
-            if (res.statusCode !== 200) {
-              file.close();
-              reject(new Error('HTTP ' + res.statusCode));
-              return;
-            }
-            const total = parseInt(res.headers['content-length'] || '0', 10);
-            let downloaded = 0;
-            res.on('data', (chunk) => {
-              downloaded += chunk.length;
-              const pct = total > 0 ? Math.round(downloaded / total * 100) : 0;
-              process.stdout.write('\\r  下载进度: ' + pct + '%');
-            });
-            res.pipe(file);
-            file.on('finish', () => { file.close(); console.log(''); resolve(); });
-          }).on('error', (err) => { file.close(); reject(err); });
-        });
-      }
-      download('${nodeUrl}', '${archiveFile.replace(/\\/g, '/')}').catch(err => { console.error(err); process.exit(1); });
-    "`)
+    await downloadFile(nodeUrl, archiveFile)
   }
 
   // 解压到临时目录
@@ -400,9 +401,10 @@ async function embedNodePortable(target) {
   rmSync(extractDir, { recursive: true })
 
   // 验证
-  const nodeExe = target.platform === 'win'
-    ? resolve(destNodeDir, 'node.exe')
-    : resolve(destNodeDir, 'bin', 'node')
+  const nodeExe =
+    target.platform === 'win'
+      ? resolve(destNodeDir, 'node.exe')
+      : resolve(destNodeDir, 'bin', 'node')
 
   if (existsSync(nodeExe)) {
     console.log(`  Node.js v${EMBEDDED_NODE_VERSION} 已嵌入`)
@@ -417,7 +419,7 @@ async function embedNodePortable(target) {
 function findAppBundle(dir) {
   try {
     const entries = readdirSync(dir)
-    const app = entries.find(e => e.endsWith('.app'))
+    const app = entries.find((e) => e.endsWith('.app'))
     return app ? resolve(dir, app) : null
   } catch {
     return null
@@ -435,7 +437,7 @@ async function main() {
   if (viteOnly) {
     console.log('模式: 仅 Vite 构建')
   } else {
-    console.log(`目标: ${targets.map(t => t.label).join(', ')}`)
+    console.log(`目标: ${targets.map((t) => t.label).join(', ')}`)
   }
 
   const startTime = Date.now()
@@ -468,7 +470,7 @@ async function main() {
   }
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error('\n构建失败:', err.message || err)
   process.exit(1)
 })
