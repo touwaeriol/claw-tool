@@ -251,9 +251,9 @@ function getPlatformAssetPattern() {
 
   if (platform === 'win32') {
     if (arch === 'arm64') {
-      return { platform: 'win', arch: 'arm64', patterns: [/win.*arm64.*\.exe$/i, /arm64.*\.exe$/i] }
+      return { platform: 'win', arch: 'arm64', patterns: [/win.*arm64.*\.msi$/i, /arm64.*\.msi$/i] }
     }
-    return { platform: 'win', arch: 'x64', patterns: [/win.*x64.*\.exe$/i, /x64.*\.exe$/i, /setup.*\.exe$/i] }
+    return { platform: 'win', arch: 'x64', patterns: [/win.*x64.*\.msi$/i, /x64.*\.msi$/i, /\.msi$/i] }
   }
 
   if (platform === 'darwin') {
@@ -424,8 +424,8 @@ function launchInstaller(filePath) {
   const platform = process.platform
 
   if (platform === 'win32') {
-    // Windows：启动 .exe 安装包
-    exec(`start "" "${filePath}"`, { windowsHide: false })
+    // Windows：启动 .msi 安装包
+    exec(`msiexec /i "${filePath}"`, { windowsHide: false })
   } else if (platform === 'darwin') {
     // macOS：打开 .dmg
     exec(`open "${filePath}"`)
