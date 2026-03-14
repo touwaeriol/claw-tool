@@ -179,21 +179,30 @@ function buildRenderer() {
 function copyMainProcess() {
   step('步骤 2/5: 复制主进程和共享代码')
 
-  copyDir(resolve(ROOT, 'src', 'main'), resolve(DIST_DIR, 'main'), 'src/main/ → dist/main/')
+  // 保持 src/ 前缀，与开发环境路径一致（nw-bridge.js 用 'src/main/...' 引用模块）
+  copyDir(
+    resolve(ROOT, 'src', 'main'),
+    resolve(DIST_DIR, 'src', 'main'),
+    'src/main/ → dist/src/main/',
+  )
 
-  copyDir(resolve(ROOT, 'src', 'shared'), resolve(DIST_DIR, 'shared'), 'src/shared/ → dist/shared/')
+  copyDir(
+    resolve(ROOT, 'src', 'shared'),
+    resolve(DIST_DIR, 'src', 'shared'),
+    'src/shared/ → dist/src/shared/',
+  )
 
   // executor 和 instances 模块（如果存在）
   copyDir(
     resolve(ROOT, 'src', 'executor'),
-    resolve(DIST_DIR, 'executor'),
-    'src/executor/ → dist/executor/',
+    resolve(DIST_DIR, 'src', 'executor'),
+    'src/executor/ → dist/src/executor/',
   )
 
   copyDir(
     resolve(ROOT, 'src', 'instances'),
-    resolve(DIST_DIR, 'instances'),
-    'src/instances/ → dist/instances/',
+    resolve(DIST_DIR, 'src', 'instances'),
+    'src/instances/ → dist/src/instances/',
   )
 }
 
@@ -248,7 +257,7 @@ async function generateDistManifest() {
     version: srcPkg.version,
     description: srcPkg.description,
     main: 'index.html',
-    'node-main': 'main/index.js',
+    'node-main': 'src/main/index.js',
     window: {
       title: 'Claw Tool',
       width: 1200,
