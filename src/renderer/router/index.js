@@ -36,6 +36,12 @@ const routes = [
     meta: { title: 'Agent' },
   },
   {
+    path: '/workspace',
+    name: 'Workspace',
+    component: () => import('../views/WorkspaceView.vue'),
+    meta: { title: '工作区' },
+  },
+  {
     path: '/gateway',
     name: 'Gateway',
     component: () => import('../views/GatewayView.vue'),

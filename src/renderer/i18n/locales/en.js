@@ -12,6 +12,7 @@ export default {
     service: 'Service',
     logs: 'Logs',
     test: 'Test',
+    workspace: 'Workspace',
     skills: 'Skill Store',
     settings: 'Settings',
   },
@@ -353,6 +354,24 @@ export default {
   logsView: {
     title: 'Logs',
     developing: 'Log viewer is under development...',
+  },
+
+  workspace: {
+    soul: 'Soul',
+    memory: 'Memory',
+    installedSkills: 'Installed Skills',
+    workspaceFiles: 'Workspace Files',
+    fileNotExists: '{name} file does not exist',
+    createDefault: 'Create default template',
+    fileSaved: 'File saved',
+    fileCreated: 'File created',
+    memoryStatus: 'Memory Status',
+    memoryLogs: 'Memory Logs',
+    rebuildIndex: 'Rebuild Index',
+    indexRebuilt: 'Index rebuild complete',
+    confirmUninstall: 'Are you sure to uninstall skill "{slug}"?',
+    confirmUninstallTitle: 'Confirm Uninstall',
+    skillUninstalled: 'Skill uninstalled',
   },
 
   agentsView: {

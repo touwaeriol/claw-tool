@@ -13,6 +13,7 @@ export default {
     service: '服务管理',
     logs: '日志',
     test: '测试',
+    workspace: '工作区',
     skills: '技能商店',
     settings: '设置',
   },
@@ -366,6 +367,25 @@ export default {
   logsView: {
     title: '日志',
     developing: '日志查看功能开发中...',
+  },
+
+  // 工作区
+  workspace: {
+    soul: '灵魂',
+    memory: '记忆',
+    installedSkills: '已安装技能',
+    workspaceFiles: '工作区文件',
+    fileNotExists: '{name} 文件不存在',
+    createDefault: '创建默认模板',
+    fileSaved: '文件已保存',
+    fileCreated: '文件已创建',
+    memoryStatus: '记忆状态',
+    memoryLogs: '记忆日志',
+    rebuildIndex: '重建索引',
+    indexRebuilt: '索引重建完成',
+    confirmUninstall: '确定要卸载技能「{slug}」吗？',
+    confirmUninstallTitle: '确认卸载',
+    skillUninstalled: '技能已卸载',
   },
 
   // Agent

@@ -12,6 +12,7 @@ export default {
     service: '서비스 관리',
     logs: '로그',
     test: '테스트',
+    workspace: '워크스페이스',
     skills: '스킬 스토어',
     settings: '설정',
   },
@@ -292,6 +293,24 @@ export default {
   logsView: {
     title: '로그',
     developing: '로그 뷰어 개발 중...',
+  },
+
+  workspace: {
+    soul: '소울',
+    memory: '메모리',
+    installedSkills: '설치된 스킬',
+    workspaceFiles: '워크스페이스 파일',
+    fileNotExists: '{name} 파일이 존재하지 않습니다',
+    createDefault: '기본 템플릿 생성',
+    fileSaved: '파일이 저장되었습니다',
+    fileCreated: '파일이 생성되었습니다',
+    memoryStatus: '메모리 상태',
+    memoryLogs: '메모리 로그',
+    rebuildIndex: '인덱스 재구축',
+    indexRebuilt: '인덱스 재구축 완료',
+    confirmUninstall: '스킬 "{slug}"을(를) 제거하시겠습니까?',
+    confirmUninstallTitle: '제거 확인',
+    skillUninstalled: '스킬이 제거되었습니다',
   },
 
   agentsView: {

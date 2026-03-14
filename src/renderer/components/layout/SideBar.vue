@@ -20,6 +20,7 @@ const menuItems = [
   { path: '/providers', labelKey: 'menu.providers', icon: 'Connection' },
   { path: '/channels', labelKey: 'menu.channels', icon: 'ChatDotRound' },
   { path: '/agents', labelKey: 'menu.agents', icon: 'User' },
+  { path: '/workspace', labelKey: 'menu.workspace', icon: 'Files' },
   { path: '/gateway', labelKey: 'menu.gateway', icon: 'Switch' },
   { path: '/instances', labelKey: 'menu.instances', icon: 'OfficeBuilding' },
   { path: '/service', labelKey: 'menu.service', icon: 'Monitor' },

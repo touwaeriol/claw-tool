@@ -12,6 +12,7 @@ export default {
     service: 'サービス管理',
     logs: 'ログ',
     test: 'テスト',
+    workspace: 'ワークスペース',
     skills: 'スキルストア',
     settings: '設定',
   },
@@ -292,6 +293,24 @@ export default {
   logsView: {
     title: 'ログ',
     developing: 'ログビューアーは開発中です...',
+  },
+
+  workspace: {
+    soul: 'ソウル',
+    memory: 'メモリー',
+    installedSkills: 'インストール済みスキル',
+    workspaceFiles: 'ワークスペースファイル',
+    fileNotExists: '{name} ファイルが存在しません',
+    createDefault: 'デフォルトテンプレートを作成',
+    fileSaved: 'ファイルを保存しました',
+    fileCreated: 'ファイルを作成しました',
+    memoryStatus: 'メモリーステータス',
+    memoryLogs: 'メモリーログ',
+    rebuildIndex: 'インデックス再構築',
+    indexRebuilt: 'インデックス再構築完了',
+    confirmUninstall: 'スキル「{slug}」をアンインストールしますか？',
+    confirmUninstallTitle: 'アンインストール確認',
+    skillUninstalled: 'スキルをアンインストールしました',
   },
 
   agentsView: {

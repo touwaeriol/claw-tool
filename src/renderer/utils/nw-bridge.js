@@ -67,6 +67,7 @@ export function getBackend() {
     const openclawUpdaterMod = safeRequire('src/main/updater-openclaw')
     const providerAuthMod = safeRequire('src/main/provider-auth')
     const channelTestRecordsMod = safeRequire('src/main/channel-test-records')
+    const workspaceManagerMod = safeRequire('src/main/workspace-manager')
 
     // npm 包
     let markdownIt = null
@@ -95,6 +96,7 @@ export function getBackend() {
       openclawUpdater: openclawUpdaterMod,
       providerAuth: providerAuthMod,
       channelTestRecords: channelTestRecordsMod,
+      workspaceManager: workspaceManagerMod,
 
       // npm 包
       MarkdownIt: markdownIt,
