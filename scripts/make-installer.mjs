@@ -131,6 +131,14 @@ function makeWindowsInstaller(arch) {
   // 确定主可执行文件名
   const exeName = 'claw-tool.exe'
 
+  // 查找 .ico 图标文件
+  const icoPath = resolve(BUILD_DIR, 'icons', 'icon.ico')
+  const icoInSource = resolve(sourceDir, 'icons', 'icon.ico')
+  const iconFile = existsSync(icoPath) ? icoPath : existsSync(icoInSource) ? icoInSource : null
+  if (!iconFile) {
+    console.warn('  警告：未找到 .ico 图标文件，安装包将使用默认图标')
+  }
+
   // 临时文件路径
   const tmpDir = resolve(BUILD_DIR, '_wix_tmp')
   ensureDir(tmpDir)
@@ -160,6 +168,7 @@ function makeWindowsInstaller(arch) {
       .replace(/\{\{UPGRADE_CODE\}\}/g, UPGRADE_CODE)
       .replace(/\{\{PRODUCT_CODE\}\}/g, productCode)
       .replace(/\{\{EXE_NAME\}\}/g, exeName)
+      .replace(/\{\{ICON_FILE\}\}/g, iconFile ? iconFile.replace(/\//g, '\\') : '')
 
     writeFileSync(mainWxs, wxsContent, 'utf-8')
 

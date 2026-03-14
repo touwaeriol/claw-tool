@@ -161,7 +161,7 @@ function copyMainProcess() {
 /**
  * 步骤 3: 生成 dist/package.json 并复制图标
  */
-function generateDistManifest() {
+async function generateDistManifest() {
   step('步骤 3/5: 生成 NW.js manifest 和图标')
 
   const srcPkg = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf-8'))
@@ -177,8 +177,22 @@ function generateDistManifest() {
     console.warn('  警告：未找到图标文件 .image/claw-tool-icon.png')
   }
 
-  // 复制平台特定图标（如果存在）
+  // 自动从 PNG 生成 .ico（如果 build/icons/icon.ico 不存在）
   const buildIconsDir = resolve(ROOT, 'build', 'icons')
+  const icoPath = resolve(buildIconsDir, 'icon.ico')
+  if (!existsSync(icoPath) && existsSync(ICON_SRC)) {
+    try {
+      const pngToIco = (await import('png-to-ico')).default
+      const icoBuf = await pngToIco(ICON_SRC)
+      ensureDir(buildIconsDir)
+      writeFileSync(icoPath, icoBuf)
+      console.log('  已从 PNG 生成: build/icons/icon.ico')
+    } catch (err) {
+      console.warn(`  警告：生成 .ico 失败: ${err.message}`)
+    }
+  }
+
+  // 复制平台特定图标（如果存在）
   if (existsSync(buildIconsDir)) {
     for (const file of ['icon.ico', 'icon.icns']) {
       const src = resolve(buildIconsDir, file)
@@ -298,7 +312,7 @@ async function main() {
   copyMainProcess()
 
   // 步骤 3: 生成 manifest + 图标
-  generateDistManifest()
+  await generateDistManifest()
 
   if (!viteOnly) {
     // 步骤 4: 安装依赖

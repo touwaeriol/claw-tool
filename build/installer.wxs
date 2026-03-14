@@ -8,6 +8,7 @@
     {{UPGRADE_CODE}}  — 固定 GUID，用于升级识别
     {{PRODUCT_CODE}}  — 每次构建唯一的 GUID
     {{EXE_NAME}}      — 主可执行文件名（如 "claw-tool.exe"）
+    {{ICON_FILE}}     — .ico 图标文件绝对路径
 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
 
@@ -41,12 +42,17 @@
       <Directory Id="DesktopFolder" />
     </Directory>
 
+    <!-- 应用图标（用于快捷方式和控制面板） -->
+    <Icon Id="AppIcon.ico" SourceFile="{{ICON_FILE}}" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+
     <!-- 开始菜单快捷方式 -->
     <DirectoryRef Id="ApplicationProgramsFolder">
       <Component Id="StartMenuShortcut" Guid="*">
         <Shortcut Id="StartMenuShortcut"
                   Name="{{APP_NAME}}"
                   Target="[INSTALLFOLDER]{{EXE_NAME}}"
+                  Icon="AppIcon.ico"
                   WorkingDirectory="INSTALLFOLDER" />
         <RemoveFolder Id="CleanUpStartMenu" Directory="ApplicationProgramsFolder" On="uninstall" />
         <RegistryValue Root="HKCU" Key="Software\{{APP_NAME}}" Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
@@ -59,6 +65,7 @@
         <Shortcut Id="DesktopShortcut"
                   Name="{{APP_NAME}}"
                   Target="[INSTALLFOLDER]{{EXE_NAME}}"
+                  Icon="AppIcon.ico"
                   WorkingDirectory="INSTALLFOLDER" />
         <RegistryValue Root="HKCU" Key="Software\{{APP_NAME}}" Name="DesktopShortcut" Type="integer" Value="1" KeyPath="yes" />
       </Component>
