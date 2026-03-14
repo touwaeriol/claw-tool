@@ -128,8 +128,8 @@ function makeWindowsInstaller(arch) {
   const light = `${wixPrefix}light.exe"`
   const heat = `${wixPrefix}heat.exe"`
 
-  // 确定主可执行文件名（nw-builder 使用 app.name，即 "Claw Tool"）
-  const exeName = 'Claw Tool.exe'
+  // 确定主可执行文件名（nw-builder 使用 app.name "claw-tool"）
+  const exeName = 'claw-tool.exe'
 
   // 查找 .ico 图标文件
   const icoPath = resolve(BUILD_DIR, 'icons', 'icon.ico')
@@ -235,6 +235,9 @@ function makeMacDmg(arch) {
     return null
   }
 
+  // 获取 .app 文件名（如 "claw-tool.app"）
+  const appBundleName = appBundle.split('/').pop().split('\\').pop()
+
   // 使用 create-dmg 命令行工具（macOS 内置或通过 brew 安装）
   try {
     // 先尝试 create-dmg (brew install create-dmg)
@@ -244,7 +247,7 @@ function makeMacDmg(arch) {
       ` --window-pos 200 120` +
       ` --window-size 540 380` +
       ` --icon-size 80` +
-      ` --icon "${APP_NAME}.app" 140 200` +
+      ` --icon "${appBundleName}" 140 200` +
       ` --app-drop-link 400 200` +
       ` --no-internet-enable` +
       ` "${outputFile}"` +

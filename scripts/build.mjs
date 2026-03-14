@@ -267,8 +267,9 @@ async function packTarget(target) {
     glob: false,
     srcDir: DIST_DIR,
     app: {
-      // macOS Info.plist 必需字段
-      name: 'Claw Tool',
+      // name 决定可执行文件名：Windows → claw-tool.exe, macOS → claw-tool.app
+      // macOS 显示名用 CFBundleDisplayName 控制
+      name: 'claw-tool',
       icon: resolve(DIST_DIR, 'icons', 'icon.png'),
       LSApplicationCategoryType: 'public.app-category.developer-tools',
       CFBundleIdentifier: 'com.clawtool.app',
