@@ -80,16 +80,27 @@ async function checkNode(executor) {
       emitProgress('node-check', 'failed', `v${version}，需要 >= ${MIN_NODE_VERSION}`)
     }
 
-    // 检测是否使用 bundled node
+    // 检测是否使用 bundled node 及路径
     let bundled = false
+    let nodePath = null
     try {
       const bundledNode = require('../shared/bundled-node')
       bundled = bundledNode.getBundledNodePaths().found
     } catch {
       /* 忽略 */
     }
+    try {
+      const isWin = process.platform === 'win32'
+      const whichCmd = isWin ? 'where' : 'which'
+      const pathResult = await executor.exec(`${whichCmd} node`, { timeout: 5000 })
+      if (pathResult.exitCode === 0) {
+        nodePath = pathResult.stdout.trim().split(/\r?\n/)[0]
+      }
+    } catch {
+      /* 忽略 */
+    }
 
-    return { installed: true, version, meetsRequirement, bundled }
+    return { installed: true, version, meetsRequirement, bundled, nodePath }
   } catch (err) {
     emitLog(`Node.js 检测失败: ${err.message}`, 'error')
     emitProgress('node-check', 'failed', err.message)
