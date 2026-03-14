@@ -8,13 +8,18 @@ const { spawn } = require('child_process')
 const { EventEmitter } = require('events')
 const { eventBus, Events } = require('../shared/ipc')
 
-// 注入代理环境变量
+// 注入 bundled node 路径和代理环境变量
 function getEnvWithProxy() {
   const env = { ...process.env }
+  // 注入 bundled node PATH
+  try {
+    const { getEnhancedEnv } = require('../shared/bundled-node')
+    Object.assign(env, getEnhancedEnv())
+  } catch { /* bundled-node 不可用时忽略 */ }
+  // 注入代理环境变量
   try {
     const { getProxyEnv } = require('./proxy-manager')
-    const proxyEnv = getProxyEnv()
-    Object.assign(env, proxyEnv)
+    Object.assign(env, getProxyEnv())
   } catch { /* proxy-manager 不可用时忽略 */ }
   return env
 }

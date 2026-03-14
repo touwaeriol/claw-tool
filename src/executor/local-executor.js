@@ -21,6 +21,19 @@ function getProxyManager() {
   return _proxyManager
 }
 
+// 延迟加载 bundled node 路径
+let _bundledEnv = null
+function getBundledEnv() {
+  if (_bundledEnv !== null) return _bundledEnv
+  try {
+    const { getEnhancedEnv } = require('../shared/bundled-node')
+    _bundledEnv = getEnhancedEnv()
+  } catch {
+    _bundledEnv = {}
+  }
+  return _bundledEnv
+}
+
 class LocalExecutor {
   /**
    * 执行 shell 命令
@@ -32,14 +45,15 @@ class LocalExecutor {
    */
   exec(command, options = {}) {
     return new Promise((resolve, reject) => {
-      // 注入代理环境变量
+      // 注入 bundled node 路径和代理环境变量
+      const bundledEnv = getBundledEnv()
       const pm = getProxyManager()
       const proxyEnv = pm ? pm.getProxyEnv() : {}
       const child = exec(command, {
         cwd: options.cwd,
         timeout: options.timeout || 60000,
         windowsHide: true,
-        env: { ...process.env, ...proxyEnv, ...options.env },
+        env: { ...process.env, ...bundledEnv, ...proxyEnv, ...options.env },
       }, (error, stdout, stderr) => {
         resolve({
           stdout: stdout || '',
@@ -64,13 +78,14 @@ class LocalExecutor {
       const shell = isWin ? 'cmd.exe' : '/bin/sh'
       const shellArgs = isWin ? ['/c', command] : ['-c', command]
 
-      // 注入代理环境变量
+      // 注入 bundled node 路径和代理环境变量
+      const bundledEnv = getBundledEnv()
       const pm = getProxyManager()
       const proxyEnv = pm ? pm.getProxyEnv() : {}
       const child = spawn(shell, shellArgs, {
         cwd: options.cwd,
         windowsHide: true,
-        env: { ...process.env, ...proxyEnv, ...options.env },
+        env: { ...process.env, ...bundledEnv, ...proxyEnv, ...options.env },
       })
 
       if (options.onStdout) {

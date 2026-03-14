@@ -80,11 +80,18 @@ async function checkNode(executor) {
       emitProgress('node-check', 'failed', `v${version}，需要 >= ${MIN_NODE_VERSION}`)
     }
 
-    return { installed: true, version, meetsRequirement }
+    // 检测是否使用 bundled node
+    let bundled = false
+    try {
+      const bundledNode = require('../shared/bundled-node')
+      bundled = bundledNode.getBundledNodePaths().found
+    } catch { /* 忽略 */ }
+
+    return { installed: true, version, meetsRequirement, bundled }
   } catch (err) {
     emitLog(`Node.js 检测失败: ${err.message}`, 'error')
     emitProgress('node-check', 'failed', err.message)
-    return { installed: false, version: null, meetsRequirement: false }
+    return { installed: false, version: null, meetsRequirement: false, bundled: false }
   }
 }
 

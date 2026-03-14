@@ -29,6 +29,7 @@ import {
   readFileSync,
   writeFileSync,
   rmSync,
+  readdirSync,
 } from 'fs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -38,6 +39,9 @@ const ROOT = resolve(__dirname, '..')
 
 /** NW.js 版本 — 与 devDependencies 中的 nw 包版本保持一致 */
 const NW_VERSION = '0.96.0'
+
+/** 内嵌 Node.js 版本 */
+const EMBEDDED_NODE_VERSION = '22.22.1'
 
 /** 源图标路径 */
 const ICON_SRC = resolve(ROOT, '.image', 'claw-tool-icon.png')
@@ -290,6 +294,136 @@ async function packTarget(target) {
   console.log(`\n  打包完成: release/${platformLabel}-${target.arch}/`)
 }
 
+// ─── 内嵌 Node.js Portable ────────────────────────────
+
+/**
+ * 步骤 6: 下载并嵌入 Node.js Portable 到打包输出目录
+ */
+async function embedNodePortable(target) {
+  step(`步骤 6: 嵌入 Node.js v${EMBEDDED_NODE_VERSION} Portable`)
+
+  const platformLabel = target.platform === 'win' ? 'windows' : 'macos'
+  const outDir = resolve(RELEASE_DIR, `${platformLabel}-${target.arch}`)
+
+  // 确定下载 URL 和文件名
+  let archiveFile, archiveName, nodeSubDir
+  if (target.platform === 'win') {
+    archiveName = `node-v${EMBEDDED_NODE_VERSION}-win-${target.arch}.zip`
+    nodeSubDir = `node-v${EMBEDDED_NODE_VERSION}-win-${target.arch}`
+  } else {
+    archiveName = `node-v${EMBEDDED_NODE_VERSION}-darwin-${target.arch}.tar.gz`
+    nodeSubDir = `node-v${EMBEDDED_NODE_VERSION}-darwin-${target.arch}`
+  }
+
+  const nodeUrl = `https://nodejs.org/dist/v${EMBEDDED_NODE_VERSION}/${archiveName}`
+  const cacheDir = resolve(ROOT, 'build', '_node_cache')
+  ensureDir(cacheDir)
+  archiveFile = resolve(cacheDir, archiveName)
+
+  // 下载（有缓存则跳过）
+  if (existsSync(archiveFile)) {
+    console.log(`  已缓存: ${archiveName}`)
+  } else {
+    console.log(`  下载: ${nodeUrl}`)
+    run(`node -e "
+      const https = require('https');
+      const fs = require('fs');
+      function download(url, dest) {
+        return new Promise((resolve, reject) => {
+          const file = fs.createWriteStream(dest);
+          https.get(url, (res) => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+              file.close();
+              fs.unlinkSync(dest);
+              download(res.headers.location, dest).then(resolve).catch(reject);
+              return;
+            }
+            if (res.statusCode !== 200) {
+              file.close();
+              reject(new Error('HTTP ' + res.statusCode));
+              return;
+            }
+            const total = parseInt(res.headers['content-length'] || '0', 10);
+            let downloaded = 0;
+            res.on('data', (chunk) => {
+              downloaded += chunk.length;
+              const pct = total > 0 ? Math.round(downloaded / total * 100) : 0;
+              process.stdout.write('\\r  下载进度: ' + pct + '%');
+            });
+            res.pipe(file);
+            file.on('finish', () => { file.close(); console.log(''); resolve(); });
+          }).on('error', (err) => { file.close(); reject(err); });
+        });
+      }
+      download('${nodeUrl}', '${archiveFile.replace(/\\/g, '/')}').catch(err => { console.error(err); process.exit(1); });
+    "`)
+  }
+
+  // 解压到临时目录
+  const extractDir = resolve(cacheDir, '_extract')
+  if (existsSync(extractDir)) {
+    rmSync(extractDir, { recursive: true })
+  }
+  ensureDir(extractDir)
+
+  console.log('  解压中...')
+  if (target.platform === 'win') {
+    run(`tar -xf "${archiveFile}" -C "${extractDir}"`)
+  } else {
+    run(`tar -xzf "${archiveFile}" -C "${extractDir}"`)
+  }
+
+  // 复制到输出目录
+  const extractedNodeDir = resolve(extractDir, nodeSubDir)
+  let destNodeDir
+
+  if (target.platform === 'win') {
+    destNodeDir = resolve(outDir, 'node')
+  } else {
+    // macOS: .app/Contents/Resources/node/
+    const appBundle = findAppBundle(outDir)
+    if (appBundle) {
+      destNodeDir = resolve(appBundle, 'Contents', 'Resources', 'node')
+    } else {
+      destNodeDir = resolve(outDir, 'node')
+    }
+  }
+
+  if (existsSync(destNodeDir)) {
+    rmSync(destNodeDir, { recursive: true })
+  }
+
+  console.log(`  复制到: ${destNodeDir}`)
+  cpSync(extractedNodeDir, destNodeDir, { recursive: true })
+
+  // 清理解压临时目录
+  rmSync(extractDir, { recursive: true })
+
+  // 验证
+  const nodeExe = target.platform === 'win'
+    ? resolve(destNodeDir, 'node.exe')
+    : resolve(destNodeDir, 'bin', 'node')
+
+  if (existsSync(nodeExe)) {
+    console.log(`  Node.js v${EMBEDDED_NODE_VERSION} 已嵌入`)
+  } else {
+    throw new Error(`Node.js 嵌入失败: ${nodeExe} 不存在`)
+  }
+}
+
+/**
+ * 在 release 目录中查找 .app 包（macOS）
+ */
+function findAppBundle(dir) {
+  try {
+    const entries = readdirSync(dir)
+    const app = entries.find(e => e.endsWith('.app'))
+    return app ? resolve(dir, app) : null
+  } catch {
+    return null
+  }
+}
+
 // ─── 主流程 ───────────────────────────────────────────
 
 async function main() {
@@ -319,9 +453,10 @@ async function main() {
     // 步骤 4: 安装依赖
     installDeps()
 
-    // 步骤 5: 逐个平台打包
+    // 步骤 5: 逐个平台打包 + 步骤 6: 嵌入 Node.js
     for (const target of targets) {
       await packTarget(target)
+      await embedNodePortable(target)
     }
   }
 
