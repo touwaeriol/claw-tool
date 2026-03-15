@@ -14,6 +14,7 @@
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
+const { getDiscoveredDirs } = require('./openclaw-discover')
 
 // 缓存结果，避免重复检测
 let _cached = null
@@ -101,26 +102,6 @@ function getGlobalBinDir() {
 }
 
 /**
- * 获取 OpenClaw 官方安装脚本可能使用的路径
- * 覆盖 install.sh / install-cli.sh / install.ps1 的各种安装方式
- * @returns {string[]} 可能包含 openclaw 的目录列表
- */
-function getOpenClawSearchPaths() {
-  const home = os.homedir()
-  const paths = []
-
-  // install-cli.sh 默认安装路径: ~/.openclaw/bin
-  const openclawBin = path.join(home, '.openclaw', 'bin')
-  if (fs.existsSync(openclawBin)) paths.push(openclawBin)
-
-  // install.sh / install.ps1 (git 模式): ~/.local/bin
-  const localBin = path.join(home, '.local', 'bin')
-  if (fs.existsSync(localBin)) paths.push(localBin)
-
-  return paths
-}
-
-/**
  * 获取增强的环境变量（PATH + NPM_CONFIG_PREFIX）
  *
  * 策略：
@@ -133,10 +114,10 @@ function getEnhancedEnv() {
   const bundled = getBundledNodePaths()
   const globalBin = getGlobalBinDir()
   const currentPath = process.env.PATH || process.env.Path || ''
-  const openclawPaths = getOpenClawSearchPaths()
+  const openclawDirs = getDiscoveredDirs()
 
-  // 即使没有 bundled node，也需要将官方安装路径加入 PATH
-  const extraPaths = [globalBin, ...openclawPaths]
+  // 即使没有 bundled node，也需要将 openclaw 所在目录加入 PATH
+  const extraPaths = [globalBin, ...openclawDirs]
   if (bundled.found) {
     extraPaths.push(bundled.nodeDir)
   }
@@ -185,6 +166,5 @@ module.exports = {
   hasSystemNode,
   getGlobalPrefix,
   getGlobalBinDir,
-  getOpenClawSearchPaths,
   getEnhancedEnv,
 }

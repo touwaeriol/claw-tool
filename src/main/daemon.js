@@ -6,8 +6,7 @@
  */
 
 const path = require('path')
-const fs = require('fs').promises
-const os = require('os')
+const { findOpenClaw } = require('../shared/openclaw-discover')
 
 class DaemonManager {
   constructor() {
@@ -125,8 +124,8 @@ class DaemonManager {
 
     if (enable) {
       // 获取 openclaw 路径
-      const whichResult = await executor.exec('where openclaw')
-      const openclawPath = whichResult.stdout.trim().split('\n')[0]
+      const discovered = findOpenClaw(true)
+      const openclawPath = discovered.found ? discovered.binPath : null
       if (!openclawPath) {
         return { success: false, output: { key: 'service.openclawCmdNotFound' } }
       }
@@ -160,8 +159,8 @@ class DaemonManager {
 
     if (enable) {
       // 获取 openclaw 路径
-      const whichResult = await executor.exec('which openclaw')
-      const openclawPath = whichResult.stdout.trim()
+      const discovered = findOpenClaw(true)
+      const openclawPath = discovered.found ? discovered.binPath : null
       if (!openclawPath) {
         return { success: false, output: { key: 'service.openclawCmdNotFound' } }
       }
