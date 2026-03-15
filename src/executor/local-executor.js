@@ -60,6 +60,7 @@ class LocalExecutor {
           cwd: options.cwd,
           timeout: options.timeout || 60000,
           windowsHide: true,
+          encoding: 'utf8',
           env: { ...process.env, ...bundledEnv, ...proxyEnv, ...options.env },
         },
         (error, stdout, stderr) => {
@@ -100,10 +101,28 @@ class LocalExecutor {
       })
 
       if (options.onStdout) {
-        child.stdout.on('data', (data) => options.onStdout(data.toString()))
+        child.stdout.setEncoding('utf8')
+        child.stdout.on('data', (data) => options.onStdout(data))
       }
       if (options.onStderr) {
-        child.stderr.on('data', (data) => options.onStderr(data.toString()))
+        child.stderr.setEncoding('utf8')
+        child.stderr.on('data', (data) => options.onStderr(data))
+      }
+
+      // 支持 AbortSignal 取消
+      if (options.signal) {
+        if (options.signal.aborted) {
+          child.kill()
+          return reject(new Error('cancelled'))
+        }
+        options.signal.addEventListener(
+          'abort',
+          () => {
+            child.kill()
+            reject(new Error('cancelled'))
+          },
+          { once: true },
+        )
       }
 
       child.on('close', (code) => {
@@ -118,7 +137,7 @@ class LocalExecutor {
       if (options.timeout) {
         setTimeout(() => {
           child.kill()
-          reject(new Error(`命令执行超时: ${command}`))
+          reject(new Error(`command timed out: ${command}`))
         }, options.timeout)
       }
     })

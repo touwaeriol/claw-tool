@@ -34,13 +34,13 @@ export const useServiceStore = defineStore('service', () => {
   let uptimeTimer = null
 
   /**
-   * 状态文本
+   * 状态文本（返回 i18n key，消费端使用 t() 翻译）
    */
   const statusText = computed(() => {
-    if (loading.value) return '操作中...'
-    if (error.value) return '错误'
-    if (gatewayRunning.value) return '运行中'
-    return '已停止'
+    if (loading.value) return 'status.processing'
+    if (error.value) return 'status.error'
+    if (gatewayRunning.value) return 'status.running'
+    return 'status.stopped'
   })
 
   /**

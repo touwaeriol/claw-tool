@@ -4,6 +4,9 @@
    * 显示 Gateway 端口、运行时间和版本信息
    */
   import { ref } from 'vue'
+  import { useI18n } from 'vue-i18n'
+
+  const { t } = useI18n()
 
   /* placeholder 数据 */
   const gatewayPort = ref(18789)
@@ -19,7 +22,7 @@
         Gateway: {{ gatewayPort }}
       </span>
       <span class="statusbar-divider" />
-      <span class="statusbar-item"> 运行时间: {{ uptime }} </span>
+      <span class="statusbar-item"> {{ t('service.uptime') }}: {{ uptime }} </span>
     </div>
     <div class="statusbar-right">
       <span class="statusbar-item">v{{ version }}</span>

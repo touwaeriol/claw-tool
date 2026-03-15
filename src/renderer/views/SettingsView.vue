@@ -58,14 +58,14 @@
       const config = await proxyManager.loadProxyConfig()
       proxyForm.value = { ...proxyForm.value, ...config }
     } catch (err) {
-      console.warn('加载代理配置失败:', err.message)
+      console.warn('loadProxyConfig failed:', err.message)
     }
   }
 
   // 保存代理配置
   async function saveProxyConfig() {
     if (!proxyManager) {
-      ElMessage.warning('代理管理模块未加载')
+      ElMessage.warning(t('settings.proxyConfigSaved'))
       return
     }
     try {
@@ -73,14 +73,14 @@
       ElMessage.success(t('settings.proxyConfigSaved'))
       proxyTestResult.value = null
     } catch (err) {
-      ElMessage.error(`保存代理配置失败: ${err.message}`)
+      ElMessage.error(err.message)
     }
   }
 
   // 测试代理连通性
   async function testProxyConnection() {
     if (!proxyManager) {
-      ElMessage.warning('代理管理模块未加载')
+      ElMessage.warning(t('settings.testConnection'))
       return
     }
     proxyTesting.value = true
@@ -95,7 +95,7 @@
       }
     } catch (err) {
       proxyTestResult.value = { success: false, message: err.message }
-      ElMessage.error(`测试失败: ${err.message}`)
+      ElMessage.error(err.message)
     } finally {
       proxyTesting.value = false
     }
@@ -116,6 +116,7 @@
 
   // eventBus（用于通知主进程设置变更）
   const eventBus = backend?.eventBus ?? null
+  const Events = backend?.Events ?? null
 
   /* 应用设置 */
   const settings = ref({
@@ -237,7 +238,6 @@
   /* 切换远程测试服务开关 */
   async function toggleRemoteTest(enabled) {
     if (!httpServerModule) {
-      ElMessage.warning('HTTP 服务模块未加载')
       settings.value.remoteTestEnabled = false
       return
     }
@@ -259,7 +259,7 @@
       }
     } catch (err) {
       settings.value.remoteTestEnabled = !enabled
-      ElMessage.error(`操作失败: ${err.message}`)
+      ElMessage.error(err.message)
     }
   }
 
@@ -272,7 +272,7 @@
       settings.value.remoteTestToken = newToken
       ElMessage.success(t('settings.tokenRegenerated'))
     } catch (err) {
-      ElMessage.error(`重新生成失败: ${err.message}`)
+      ElMessage.error(err.message)
     } finally {
       regeneratingToken.value = false
     }
@@ -290,7 +290,7 @@
       await httpServerModule.setToken(token)
       ElMessage.success(t('settings.tokenUpdated'))
     } catch (err) {
-      ElMessage.error(`保存 Token 失败: ${err.message}`)
+      ElMessage.error(err.message)
     }
   }
 
@@ -303,7 +303,7 @@
         ElMessage.success(t('settings.tokenCopied'))
       })
       .catch(() => {
-        ElMessage.warning('复制失败，请手动复制')
+        ElMessage.warning(t('settings.tokenCopied'))
       })
   }
 
@@ -318,7 +318,7 @@
         ElMessage.success(t('settings.urlCopied'))
       })
       .catch(() => {
-        ElMessage.warning('复制失败')
+        ElMessage.warning(t('settings.urlCopied'))
       })
   }
 
@@ -333,6 +333,9 @@
     i18nLocale.value = lang
     appStore.locale = lang
     localStorage.setItem('claw-tool-locale', lang)
+    if (eventBus && Events?.LOCALE_CHANGED) {
+      eventBus.emit(Events.LOCALE_CHANGED, lang)
+    }
   }
 
   /* 监听 minimizeToTray 开关变更，实时同步到主进程 */
@@ -397,12 +400,11 @@
   /* 检查应用更新 */
   async function checkUpdate() {
     if (!appUpdater) {
-      ElMessage.info('更新模块未加载')
       return
     }
     appUpdateChecking.value = true
     try {
-      const result = await appUpdater.checkForAppUpdate()
+      const result = await appUpdater.checkForAppUpdate({ forceRefresh: true })
       appUpdateInfo.value = result
       appUpdateChecked.value = true
       if (result.hasUpdate) {
@@ -411,7 +413,7 @@
         ElMessage.info(t('settings.latestVersion'))
       }
     } catch (err) {
-      ElMessage.error(`检查更新失败: ${err.message}`)
+      ElMessage.error(err.message)
     } finally {
       appUpdateChecking.value = false
     }
@@ -430,10 +432,10 @@
           appDownloadPercent.value = progress.percent
         },
       )
-      ElMessage.success('下载完成，正在启动安装...')
+      ElMessage.success(t('settings.downloadAndInstall'))
       appUpdater.launchInstaller(filePath)
     } catch (err) {
-      ElMessage.error(`下载失败: ${err.message}`)
+      ElMessage.error(err.message)
     } finally {
       appDownloading.value = false
     }

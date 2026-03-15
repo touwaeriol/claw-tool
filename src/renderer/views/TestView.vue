@@ -4,10 +4,13 @@
    * 供应商 API 连通性测试、消息发送、Markdown 渲染、诊断工具
    */
   import { ref, nextTick, onMounted } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { ElMessage } from 'element-plus'
   import { useInstanceStore } from '../stores/instance.js'
   import { useServiceStore } from '../stores/service.js'
   import { getBackend } from '../utils/nw-bridge'
+
+  const { t } = useI18n()
 
   const instanceStore = useInstanceStore()
   const serviceStore = useServiceStore()
@@ -38,7 +41,7 @@
   const selectedProvider = ref('')
   const selectedModel = ref('')
   const providers = ref([
-    { value: '', label: '默认' },
+    { value: '', label: t('testPanel.default') },
     { value: 'anthropic', label: 'Anthropic' },
     { value: 'openai', label: 'OpenAI' },
     { value: 'google', label: 'Google' },
@@ -116,7 +119,7 @@
     try {
       const executor = instanceStore.getActiveExecutor()
       if (!executor) {
-        throw new Error('执行器不可用')
+        throw new Error(t('testPanel.executorUnavailable'))
       }
 
       // 构建请求体
@@ -136,15 +139,16 @@
       }
 
       const response = JSON.parse(result.stdout)
-      const reply = response.choices?.[0]?.message?.content || response.reply || '(空回复)'
+      const reply =
+        response.choices?.[0]?.message?.content || response.reply || t('testPanel.emptyReply')
 
       assistantMsg.content = reply
       assistantMsg.html = renderMarkdown(reply)
       assistantMsg.loading = false
       assistantMsg.latencyMs = Date.now() - startTime
     } catch (err: any) {
-      assistantMsg.content = `请求失败: ${err.message}`
-      assistantMsg.html = `<p style="color: var(--ct-danger);">请求失败: ${err.message}</p>`
+      assistantMsg.content = `${t('testPanel.requestFailed')}: ${err.message}`
+      assistantMsg.html = `<p style="color: var(--ct-danger);">${t('testPanel.requestFailed')}: ${err.message}</p>`
       assistantMsg.loading = false
       assistantMsg.latencyMs = Date.now() - startTime
     } finally {
@@ -162,7 +166,7 @@
 
     try {
       const executor = instanceStore.getActiveExecutor()
-      if (!executor) throw new Error('执行器不可用')
+      if (!executor) throw new Error(t('testPanel.executorUnavailable'))
 
       const port = serviceStore.gatewayPort || 18789
       const startTime = Date.now()
@@ -177,12 +181,14 @@
 
       if (code !== '000' && code !== '' && result.exitCode === 0) {
         testResult.value = { ok: true, latency }
-        ElMessage.success(`Gateway 连通正常，延迟 ${latency}ms`)
+        ElMessage.success(
+          `${t('testPanel.connectedSuccess')}，${t('testPanel.latency')} ${latency}ms`,
+        )
       } else {
         testResult.value = {
           ok: false,
           latency: 0,
-          error: `HTTP ${code || 'N/A'} - Gateway 可能未运行`,
+          error: `HTTP ${code || 'N/A'} - Gateway`,
         }
       }
     } catch (err: any) {
@@ -209,7 +215,7 @@
       doctorOutput.value = result.output
       doctorHealthy.value = result.success
     } catch (err: any) {
-      doctorOutput.value = `诊断出错: ${err.message}`
+      doctorOutput.value = `${t('testPanel.diagnoseFailed')}: ${err.message}`
       doctorHealthy.value = false
     } finally {
       doctorRunning.value = false
@@ -233,10 +239,10 @@
       doctorOutput.value = result.output
       doctorHealthy.value = result.success
       if (result.success) {
-        ElMessage.success('诊断修复完成')
+        ElMessage.success(t('testPanel.diagnoseFixDone'))
       }
     } catch (err: any) {
-      doctorOutput.value = `诊断出错: ${err.message}`
+      doctorOutput.value = `${t('testPanel.diagnoseFailed')}: ${err.message}`
       doctorHealthy.value = false
     } finally {
       doctorRunning.value = false
@@ -260,26 +266,32 @@
 <template>
   <div class="test-view">
     <div class="page-toolbar">
-      <h3 class="page-heading">测试面板</h3>
+      <h3 class="page-heading">{{ $t('testPanel.title') }}</h3>
       <div class="toolbar-actions">
         <el-button :loading="isTesting" size="small" @click="runConnectivityTest">
           <el-icon><ElIconConnection /></el-icon>
-          连通性测试
+          {{ $t('testPanel.connectivityTest') }}
         </el-button>
-        <el-button :loading="doctorRunning" size="small" @click="runDoctor"> 诊断 </el-button>
+        <el-button :loading="doctorRunning" size="small" @click="runDoctor">
+          {{ $t('testPanel.diagnose') }}
+        </el-button>
         <el-button :loading="doctorRunning" size="small" @click="runDoctorFix">
-          诊断并修复
+          {{ $t('testPanel.diagnoseAndFix') }}
         </el-button>
-        <el-button size="small" text @click="clearMessages">清空记录</el-button>
+        <el-button size="small" text @click="clearMessages">{{
+          $t('testPanel.clearRecords')
+        }}</el-button>
       </div>
     </div>
 
     <!-- 连通性测试结果 -->
     <el-alert
       v-if="testResult"
-      :title="testResult.ok ? '连通成功' : '连通失败'"
+      :title="testResult.ok ? $t('testPanel.connectedSuccess') : $t('testPanel.connectedFailed')"
       :type="testResult.ok ? 'success' : 'error'"
-      :description="testResult.ok ? `延迟: ${testResult.latency}ms` : testResult.error"
+      :description="
+        testResult.ok ? `${$t('testPanel.latency')}: ${testResult.latency}ms` : testResult.error
+      "
       show-icon
       closable
       @close="testResult = null"
@@ -289,9 +301,9 @@
     <el-card v-if="doctorOutput" class="doctor-card" shadow="never">
       <template #header>
         <div class="doctor-header">
-          <span>诊断结果</span>
+          <span>{{ $t('testPanel.diagnoseResult') }}</span>
           <el-tag :type="doctorHealthy ? 'success' : 'warning'" size="small">
-            {{ doctorHealthy ? '正常' : '存在问题' }}
+            {{ doctorHealthy ? $t('testPanel.healthy') : $t('testPanel.hasIssues') }}
           </el-tag>
         </div>
       </template>
@@ -304,7 +316,7 @@
       <div class="chat-options">
         <el-select
           v-model="selectedProvider"
-          placeholder="供应商（可选）"
+          :placeholder="$t('testPanel.provider')"
           size="small"
           clearable
           style="width: 150px"
@@ -313,7 +325,7 @@
         </el-select>
         <el-input
           v-model="selectedModel"
-          placeholder="模型别名（可选）"
+          :placeholder="$t('testPanel.modelAlias')"
           size="small"
           style="width: 150px"
           clearable
@@ -324,7 +336,7 @@
       <div ref="chatMessagesRef" class="chat-messages">
         <div v-if="messages.length === 0" class="chat-empty">
           <el-icon :size="48" color="var(--ct-text-placeholder)"><ElIconChatLineSquare /></el-icon>
-          <p>发送一条消息开始测试</p>
+          <p>{{ $t('testPanel.sendMessage') }}</p>
         </div>
 
         <div
@@ -339,7 +351,9 @@
           </div>
           <div class="message-body">
             <div class="message-header">
-              <span class="message-role">{{ msg.role === 'user' ? '你' : 'AI' }}</span>
+              <span class="message-role">{{
+                msg.role === 'user' ? $t('testPanel.you') : 'AI'
+              }}</span>
               <span class="message-time">{{ msg.timestamp }}</span>
               <span v-if="msg.latencyMs" class="message-latency">{{ msg.latencyMs }}ms</span>
             </div>
@@ -362,7 +376,7 @@
           v-model="inputMessage"
           type="textarea"
           :rows="2"
-          placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
+          :placeholder="$t('testPanel.inputPlaceholder')"
           resize="none"
           @keydown="handleKeydown"
         />
@@ -372,7 +386,7 @@
           :disabled="!inputMessage.trim()"
           @click="sendMessage"
         >
-          发送
+          {{ $t('testPanel.send') }}
         </el-button>
       </div>
     </div>

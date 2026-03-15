@@ -4,10 +4,12 @@
    * 本地 + 远程 SSH 实例列表，连接管理
    */
   import { ref, onMounted } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { useInstanceStore } from '../stores/instance.js'
 
   const instanceStore = useInstanceStore()
+  const { t } = useI18n()
 
   /* 添加实例弹窗 */
   const dialogVisible = ref(false)
@@ -28,9 +30,9 @@
 
   /* 表单验证规则 */
   const rules = {
-    name: [{ required: true, message: '请输入实例名称', trigger: 'blur' }],
-    host: [{ required: true, message: '请输入主机地址', trigger: 'blur' }],
-    username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+    name: [{ required: true, message: t('instances.validationName'), trigger: 'blur' }],
+    host: [{ required: true, message: t('instances.validationHost'), trigger: 'blur' }],
+    username: [{ required: true, message: t('instances.validationUsername'), trigger: 'blur' }],
   }
 
   onMounted(() => {
@@ -67,13 +69,13 @@
       })
       testResult.value = result
       if (result.success) {
-        ElMessage.success('SSH 连接成功')
+        ElMessage.success(t('instances.sshSuccess'))
       } else {
         ElMessage.error(result.message)
       }
     } catch (err) {
       testResult.value = { success: false, message: err.message }
-      ElMessage.error(`测试失败: ${err.message}`)
+      ElMessage.error(t('instances.testFailed', { error: err.message }))
     }
   }
 
@@ -89,10 +91,10 @@
     saving.value = true
     try {
       await instanceStore.addInstance(newInstance.value)
-      ElMessage.success('实例添加成功')
+      ElMessage.success(t('instances.instanceAdded'))
       dialogVisible.value = false
     } catch (err) {
-      ElMessage.error(`添加失败: ${err.message}`)
+      ElMessage.error(t('instances.addFailed', { error: err.message }))
     } finally {
       saving.value = false
     }
@@ -102,28 +104,32 @@
   async function handleConnect(instance) {
     try {
       await instanceStore.connectInstance(instance.id)
-      ElMessage.success(`已连接到 ${instance.name}`)
+      ElMessage.success(t('instances.connectedTo', { name: instance.name }))
     } catch (err) {
-      ElMessage.error(`连接失败: ${err.message}`)
+      ElMessage.error(t('instances.connectFailed', { error: err.message }))
     }
   }
 
   /* 断开连接 */
   async function handleDisconnect(instance) {
     await instanceStore.disconnectInstance(instance.id)
-    ElMessage.info(`已断开 ${instance.name}`)
+    ElMessage.info(t('instances.disconnectedFrom', { name: instance.name }))
   }
 
   /* 删除实例 */
   async function handleDelete(instance) {
     try {
       await ElMessageBox.confirm(
-        `确定要删除实例 "${instance.name}" 吗？此操作不可撤销。`,
-        '确认删除',
-        { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' },
+        t('instances.confirmDelete', { name: instance.name }),
+        t('instances.confirmDeleteTitle'),
+        {
+          confirmButtonText: t('common.delete'),
+          cancelButtonText: t('common.cancel'),
+          type: 'warning',
+        },
       )
       await instanceStore.deleteInstance(instance.id)
-      ElMessage.success('实例已删除')
+      ElMessage.success(t('instances.instanceDeleted'))
     } catch {
       // 用户取消
     }
@@ -147,12 +153,12 @@
   function getStatusText(id) {
     const status = instanceStore.connectionStatus[id]
     const map = {
-      connected: '已连接',
-      connecting: '连接中...',
-      disconnected: '未连接',
-      error: '连接错误',
+      connected: t('status.connected'),
+      connecting: t('status.connecting'),
+      disconnected: t('status.disconnected'),
+      error: t('instances.connectionError'),
     }
-    return map[status] || '未知'
+    return map[status] || t('status.unknown')
   }
 </script>
 
@@ -160,8 +166,10 @@
   <div class="instances-view">
     <!-- 页面标题 -->
     <div class="page-toolbar">
-      <h3 class="page-heading">实例管理</h3>
-      <el-button type="primary" @click="handleAddInstance"> 添加远程实例 </el-button>
+      <h3 class="page-heading">{{ $t('instances.title') }}</h3>
+      <el-button type="primary" @click="handleAddInstance">
+        {{ $t('instances.addRemote') }}
+      </el-button>
     </div>
 
     <!-- 实例卡片列表 -->
@@ -190,9 +198,9 @@
           <div class="instance-info">
             <div class="instance-name">
               {{ inst.name }}
-              <el-tag v-if="inst.type === 'local'" size="small" effect="plain" type="info"
-                >本地</el-tag
-              >
+              <el-tag v-if="inst.type === 'local'" size="small" effect="plain" type="info">{{
+                $t('instances.local')
+              }}</el-tag>
               <el-tag v-else size="small" effect="plain" type="warning">SSH</el-tag>
               <el-tag
                 v-if="instanceStore.activeInstanceId === inst.id"
@@ -200,7 +208,7 @@
                 effect="dark"
                 type="primary"
               >
-                当前
+                {{ $t('instances.current') }}
               </el-tag>
             </div>
             <div class="instance-detail">
@@ -221,8 +229,12 @@
                 }"
               />
               <span class="instance-status">{{ getStatusText(inst.id) }}</span>
-              <span v-if="inst.authType === 'key'" class="instance-auth"> 密钥认证 </span>
-              <span v-else-if="inst.type === 'ssh'" class="instance-auth"> 密码认证 </span>
+              <span v-if="inst.authType === 'key'" class="instance-auth">
+                {{ $t('instances.keyAuth') }}
+              </span>
+              <span v-else-if="inst.type === 'ssh'" class="instance-auth">
+                {{ $t('instances.passwordAuth') }}
+              </span>
             </div>
           </div>
 
@@ -239,7 +251,7 @@
               type="primary"
               @click="handleConnect(inst)"
             >
-              连接
+              {{ $t('common.connect') }}
             </el-button>
             <el-button
               v-if="inst.type === 'ssh' && instanceStore.connectionStatus[inst.id] === 'connected'"
@@ -248,7 +260,7 @@
               type="warning"
               @click="handleDisconnect(inst)"
             >
-              断开
+              {{ $t('common.disconnect') }}
             </el-button>
             <el-button
               v-if="inst.type === 'ssh'"
@@ -257,7 +269,7 @@
               type="danger"
               @click="handleDelete(inst)"
             >
-              删除
+              {{ $t('common.delete') }}
             </el-button>
           </div>
         </div>
@@ -267,25 +279,33 @@
     <!-- 空状态 -->
     <el-empty
       v-if="instanceStore.instances.length <= 1"
-      description="暂无远程实例，点击上方按钮添加"
+      :description="$t('instances.emptyText')"
       :image-size="120"
       style="margin-top: 40px"
     />
 
     <!-- 添加远程实例弹窗 -->
-    <el-dialog v-model="dialogVisible" title="添加远程实例" width="520px" destroy-on-close>
+    <el-dialog
+      v-model="dialogVisible"
+      :title="$t('instances.addRemoteTitle')"
+      width="520px"
+      destroy-on-close
+    >
       <el-form ref="formRef" :model="newInstance" :rules="rules" label-position="top">
-        <el-form-item label="实例名称" prop="name">
-          <el-input v-model="newInstance.name" placeholder="例如：生产服务器" />
+        <el-form-item :label="$t('instances.instanceName')" prop="name">
+          <el-input
+            v-model="newInstance.name"
+            :placeholder="$t('instances.instanceNamePlaceholder')"
+          />
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="16">
-            <el-form-item label="主机地址" prop="host">
-              <el-input v-model="newInstance.host" placeholder="192.168.1.100 或域名" />
+            <el-form-item :label="$t('instances.hostAddress')" prop="host">
+              <el-input v-model="newInstance.host" :placeholder="$t('instances.hostPlaceholder')" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
-            <el-form-item label="SSH 端口">
+            <el-form-item :label="$t('instances.sshPort')">
               <el-input-number
                 v-model="newInstance.port"
                 :min="1"
@@ -295,33 +315,33 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="用户名" prop="username">
+        <el-form-item :label="$t('instances.username')" prop="username">
           <el-input v-model="newInstance.username" placeholder="root" />
         </el-form-item>
-        <el-form-item label="认证方式">
+        <el-form-item :label="$t('instances.authMethod')">
           <el-radio-group v-model="newInstance.authType">
-            <el-radio value="password">密码</el-radio>
-            <el-radio value="key">SSH 密钥</el-radio>
+            <el-radio value="password">{{ $t('instances.password') }}</el-radio>
+            <el-radio value="key">{{ $t('instances.sshKey') }}</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item v-if="newInstance.authType === 'password'" label="密码">
+        <el-form-item v-if="newInstance.authType === 'password'" :label="$t('instances.password')">
           <el-input
             v-model="newInstance.password"
             type="password"
             show-password
-            placeholder="SSH 登录密码"
+            :placeholder="$t('instances.passwordPlaceholder')"
           />
         </el-form-item>
         <template v-if="newInstance.authType === 'key'">
-          <el-form-item label="私钥路径">
+          <el-form-item :label="$t('instances.privateKeyPath')">
             <el-input v-model="newInstance.privateKeyPath" placeholder="~/.ssh/id_rsa" />
           </el-form-item>
-          <el-form-item label="私钥密码（可选）">
+          <el-form-item :label="$t('instances.privateKeyPass')">
             <el-input
               v-model="newInstance.passphrase"
               type="password"
               show-password
-              placeholder="如果私钥有密码则填写"
+              :placeholder="$t('instances.privateKeyPassPlaceholder')"
             />
           </el-form-item>
         </template>
@@ -337,9 +357,13 @@
         >
           <template v-if="testResult.success && testResult.info" #default>
             <div class="test-info">
-              <div v-if="testResult.info.system">系统: {{ testResult.info.system }}</div>
-              <div>Node.js: {{ testResult.info.nodeVersion || '未安装' }}</div>
-              <div>OpenClaw: {{ testResult.info.openclawVersion || '未安装' }}</div>
+              <div v-if="testResult.info.system">
+                {{ $t('instances.system') }}: {{ testResult.info.system }}
+              </div>
+              <div>Node.js: {{ testResult.info.nodeVersion || $t('status.notInstalled') }}</div>
+              <div>
+                OpenClaw: {{ testResult.info.openclawVersion || $t('status.notInstalled') }}
+              </div>
             </div>
           </template>
         </el-alert>
@@ -347,11 +371,13 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
           <el-button :loading="instanceStore.testing" @click="handleTestConnection">
-            测试连接
+            {{ $t('instances.testConnection') }}
           </el-button>
-          <el-button type="primary" :loading="saving" @click="handleSaveInstance"> 保存 </el-button>
+          <el-button type="primary" :loading="saving" @click="handleSaveInstance">
+            {{ $t('common.save') }}
+          </el-button>
         </div>
       </template>
     </el-dialog>

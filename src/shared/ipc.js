@@ -44,6 +44,8 @@ const Events = {
   APP_UPDATE_ERROR: 'app:update-error',
   // 托盘检查更新
   TRAY_CHECK_UPDATE: 'tray:check-update',
+  // 语言切换
+  LOCALE_CHANGED: 'locale:changed',
 }
 
 module.exports = { eventBus, Events }

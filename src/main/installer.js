@@ -57,14 +57,14 @@ function emitProgress(step, status, detail = '') {
  * @returns {Promise<{installed: boolean, version: string|null, meetsRequirement: boolean}>}
  */
 async function checkNode(executor) {
-  emitLog('正在检测 Node.js...')
+  emitLog({ key: 'installer.checkingNode' })
   emitProgress('node-check', 'running')
 
   try {
     const result = await executor.exec('node --version')
     if (result.exitCode !== 0 || !result.stdout.trim()) {
-      emitLog('未检测到 Node.js', 'warn')
-      emitProgress('node-check', 'failed', '未安装 Node.js')
+      emitLog({ key: 'installer.nodeNotFound' }, 'warn')
+      emitProgress('node-check', 'failed', { key: 'installer.nodeNotInstalled' })
       return { installed: false, version: null, meetsRequirement: false }
     }
 
@@ -73,10 +73,13 @@ async function checkNode(executor) {
     const meetsRequirement = compareVersions(version, MIN_NODE_VERSION)
 
     if (meetsRequirement) {
-      emitLog(`Node.js v${version} 已安装，满足版本要求 (>= ${MIN_NODE_VERSION})`)
+      emitLog({ key: 'installer.nodeMeetsReq', params: { version, required: MIN_NODE_VERSION } })
       emitProgress('node-check', 'success', `v${version}`)
     } else {
-      emitLog(`Node.js v${version} 版本过低，需要 >= ${MIN_NODE_VERSION}`, 'warn')
+      emitLog(
+        { key: 'installer.nodeTooOld', params: { version, required: MIN_NODE_VERSION } },
+        'warn',
+      )
       emitProgress('node-check', 'failed', `v${version}，需要 >= ${MIN_NODE_VERSION}`)
     }
 
@@ -107,7 +110,7 @@ async function checkNode(executor) {
 
     return { installed: true, version, meetsRequirement, bundled, systemNode, nodeSource, nodePath }
   } catch (err) {
-    emitLog(`Node.js 检测失败: ${err.message}`, 'error')
+    emitLog({ key: 'installer.nodeCheckFailed', params: { error: err.message } }, 'error')
     emitProgress('node-check', 'failed', err.message)
     return { installed: false, version: null, meetsRequirement: false, bundled: false }
   }
@@ -119,23 +122,23 @@ async function checkNode(executor) {
  * @returns {Promise<{installed: boolean, version: string|null}>}
  */
 async function checkNpm(executor) {
-  emitLog('正在检测 npm...')
+  emitLog({ key: 'installer.checkingNpm' })
   emitProgress('npm-check', 'running')
 
   try {
     const result = await executor.exec('npm --version')
     if (result.exitCode !== 0 || !result.stdout.trim()) {
-      emitLog('未检测到 npm', 'warn')
-      emitProgress('npm-check', 'failed', '未安装 npm')
+      emitLog({ key: 'installer.npmNotFound' }, 'warn')
+      emitProgress('npm-check', 'failed', { key: 'installer.npmNotInstalled' })
       return { installed: false, version: null }
     }
 
     const version = result.stdout.trim()
-    emitLog(`npm v${version} 已安装`)
+    emitLog({ key: 'installer.npmInstalled', params: { version } })
     emitProgress('npm-check', 'success', `v${version}`)
     return { installed: true, version }
   } catch (err) {
-    emitLog(`npm 检测失败: ${err.message}`, 'error')
+    emitLog({ key: 'installer.npmCheckFailed', params: { error: err.message } }, 'error')
     emitProgress('npm-check', 'failed', err.message)
     return { installed: false, version: null }
   }
@@ -147,23 +150,23 @@ async function checkNpm(executor) {
  * @returns {Promise<{installed: boolean, version: string|null}>}
  */
 async function checkOpenClaw(executor) {
-  emitLog('正在检测 OpenClaw...')
+  emitLog({ key: 'installer.checkingOpenClaw' })
   emitProgress('openclaw-check', 'running')
 
   try {
     const result = await executor.exec('openclaw --version')
     if (result.exitCode !== 0 || !result.stdout.trim()) {
-      emitLog('未检测到 OpenClaw', 'warn')
-      emitProgress('openclaw-check', 'failed', '未安装 OpenClaw')
+      emitLog({ key: 'installer.openclawNotFound' }, 'warn')
+      emitProgress('openclaw-check', 'failed', { key: 'installer.openclawNotInstalled' })
       return { installed: false, version: null }
     }
 
     const version = result.stdout.trim()
-    emitLog(`OpenClaw ${version} 已安装`)
+    emitLog({ key: 'installer.openclawInstalled', params: { version } })
     emitProgress('openclaw-check', 'success', version)
     return { installed: true, version }
   } catch (err) {
-    emitLog(`OpenClaw 检测失败: ${err.message}`, 'error')
+    emitLog({ key: 'installer.openclawCheckFailed', params: { error: err.message } }, 'error')
     emitProgress('openclaw-check', 'failed', err.message)
     return { installed: false, version: null }
   }
@@ -237,7 +240,7 @@ async function getNodeInstallGuide(executor) {
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 async function installNode(executor, method, options = {}) {
-  emitLog(`正在安装 Node.js（方式: ${method}）...`)
+  emitLog({ key: 'installer.installingNode', params: { method } })
   emitProgress('node-install', 'running', `使用 ${method} 安装中`)
 
   const onLog = options.onLog || (() => {})
@@ -249,7 +252,7 @@ async function installNode(executor, method, options = {}) {
     } else if (method === 'nvm') {
       command = 'nvm install 24 && nvm use 24'
     } else {
-      throw new Error(`不支持的安装方式: ${method}`)
+      throw new Error(`unsupported install method: ${method}`)
     }
 
     // 使用流式执行以实时输出日志
@@ -267,12 +270,12 @@ async function installNode(executor, method, options = {}) {
       })
 
       if (result.exitCode !== 0) {
-        throw new Error(`安装命令退出码: ${result.exitCode}`)
+        throw new Error(`install command exited with code: ${result.exitCode}`)
       }
     } else {
       const result = await executor.exec(command, { timeout: 300000 })
       if (result.exitCode !== 0) {
-        throw new Error(result.stderr || `安装命令退出码: ${result.exitCode}`)
+        throw new Error(result.stderr || `install command exited with code: ${result.exitCode}`)
       }
       if (result.stdout) emitLog(result.stdout.trim())
     }
@@ -280,14 +283,18 @@ async function installNode(executor, method, options = {}) {
     // 验证安装
     const check = await checkNode(executor)
     if (check.installed && check.meetsRequirement) {
-      emitLog('Node.js 安装成功！')
+      emitLog({ key: 'installer.nodeInstallSuccess' })
       emitProgress('node-install', 'success')
       return { success: true }
     }
 
-    throw new Error('安装完成但验证失败，请检查 PATH 环境变量')
+    throw new Error('installer.nodeInstallVerifyFailed')
   } catch (err) {
-    emitLog(`Node.js 安装失败: ${err.message}`, 'error')
+    const errKey =
+      err.message === 'installer.nodeInstallVerifyFailed'
+        ? { key: 'installer.nodeInstallVerifyFailed' }
+        : { key: 'installer.nodeInstallFailed', params: { error: err.message } }
+    emitLog(errKey, 'error')
     emitProgress('node-install', 'failed', err.message)
     return { success: false, error: err.message }
   }
@@ -302,22 +309,36 @@ async function installNode(executor, method, options = {}) {
  * @returns {Promise<{success: boolean, version?: string, error?: string}>}
  */
 async function installOpenClaw(executor, options = {}) {
-  emitLog('正在安装 OpenClaw...')
+  emitLog({ key: 'installer.installingOpenClaw' })
   emitProgress('openclaw-install', 'running')
 
   const onLog = options.onLog || (() => {})
+  const onStep = options.onStep || (() => {})
+  const signal = options.signal || null
 
   try {
+    // Step 0: 检测环境
+    onStep(0, { key: 'installer.detectingEnv' })
+    if (signal && signal.aborted) throw new Error('cancelled')
+
     // 记录实际使用的 node/npm 路径
     const nodeInfo = await detectNodePaths(executor)
     if (nodeInfo.nodePath) {
-      emitLog(
-        `使用 Node.js: ${nodeInfo.nodePath} (v${nodeInfo.nodeVersion || '未知'})${nodeInfo.bundled ? ' [内嵌]' : ''}`,
-      )
+      emitLog({
+        key: nodeInfo.bundled ? 'installer.usingNodeBundled' : 'installer.usingNode',
+        params: {
+          path: nodeInfo.nodePath,
+          version: nodeInfo.nodeVersion || '?',
+        },
+      })
     }
     if (nodeInfo.npmPath) {
-      emitLog(`使用 npm: ${nodeInfo.npmPath}`)
+      emitLog({ key: 'installer.usingNpm', params: { path: nodeInfo.npmPath } })
     }
+
+    // Step 1: 下载安装
+    onStep(1, { key: 'installer.installingViaNpm' })
+    if (signal && signal.aborted) throw new Error('cancelled')
 
     let command = 'npm install -g openclaw@latest'
     if (options.registry) {
@@ -337,30 +358,38 @@ async function installOpenClaw(executor, options = {}) {
           emitLog(data.trim(), 'info')
           onLog(data)
         },
+        signal,
       })
 
       if (result.exitCode !== 0) {
-        throw new Error(`npm install 退出码: ${result.exitCode}`)
+        throw new Error(`npm install exited with code: ${result.exitCode}`)
       }
     } else {
       const result = await executor.exec(command, { timeout: 180000 })
       if (result.exitCode !== 0) {
-        throw new Error(result.stderr || `npm install 退出码: ${result.exitCode}`)
+        throw new Error(result.stderr || `npm install exited with code: ${result.exitCode}`)
       }
       if (result.stdout) emitLog(result.stdout.trim())
     }
 
-    // 验证安装
+    // Step 2: 验证安装
+    onStep(2, { key: 'installer.verifyingInstall' })
+    if (signal && signal.aborted) throw new Error('cancelled')
+
     const check = await checkOpenClaw(executor)
     if (check.installed) {
-      emitLog(`OpenClaw ${check.version} 安装成功！`)
+      emitLog({ key: 'installer.openclawInstallSuccess', params: { version: check.version } })
       emitProgress('openclaw-install', 'success', check.version)
       return { success: true, version: check.version, nodeInfo }
     }
 
-    throw new Error('安装完成但验证失败')
+    throw new Error('installer.openclawInstallVerifyFailed')
   } catch (err) {
-    emitLog(`OpenClaw 安装失败: ${err.message}`, 'error')
+    if (err.message === 'installer.openclawInstallVerifyFailed') {
+      emitLog({ key: 'installer.openclawInstallVerifyFailed' }, 'error')
+    } else if (err.message !== 'cancelled') {
+      emitLog({ key: 'installer.openclawInstallFailed', params: { error: err.message } }, 'error')
+    }
     emitProgress('openclaw-install', 'failed', err.message)
     return { success: false, error: err.message }
   }
@@ -423,18 +452,18 @@ async function detectNodePaths(executor) {
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 async function runOnboard(executor) {
-  emitLog('正在执行 OpenClaw 初始化...')
+  emitLog({ key: 'installer.runningOnboard' })
   emitProgress('openclaw-onboard', 'running')
 
   try {
     const result = await executor.exec('openclaw doctor', { timeout: 30000 })
     if (result.stdout) emitLog(result.stdout.trim())
 
-    emitLog('OpenClaw 环境诊断完成')
+    emitLog({ key: 'installer.onboardComplete' })
     emitProgress('openclaw-onboard', 'success')
     return { success: true }
   } catch (err) {
-    emitLog(`OpenClaw 初始化失败: ${err.message}`, 'error')
+    emitLog({ key: 'installer.onboardFailed', params: { error: err.message } }, 'error')
     emitProgress('openclaw-onboard', 'failed', err.message)
     return { success: false, error: err.message }
   }
@@ -461,14 +490,14 @@ async function downloadNodeInstaller(options = {}) {
   const arch = os.arch() === 'x64' ? 'x64' : os.arch() === 'arm64' ? 'arm64' : 'x86'
   const ext = platform === 'darwin' ? 'pkg' : 'msi'
 
-  emitLog('正在检测网络环境...')
+  emitLog({ key: 'installer.checkingNetwork' })
   onLog('正在检测网络环境...')
 
   try {
     // 根据地区选择镜像
     const mirror = await getNodeMirror()
     const mirrorBase = mirror.base
-    emitLog(`使用 ${mirror.label}: ${mirrorBase}`)
+    emitLog({ key: 'installer.usingMirror', params: { label: mirror.label, url: mirrorBase } })
     onLog(`使用 ${mirror.label}`)
 
     // 1. 获取最新 v22.x 版本号
@@ -488,7 +517,7 @@ async function downloadNodeInstaller(options = {}) {
 
     const match = html.match(filePattern)
     if (!match) {
-      throw new Error(`未找到适合当前平台 (${platform}/${arch}) 的 .${ext} 安装包`)
+      throw new Error(`no package found for platform (${platform}/${arch}) .${ext}`)
     }
 
     const filename = match[0]
@@ -510,15 +539,16 @@ async function downloadNodeInstaller(options = {}) {
     if (fs.existsSync(installerPath)) {
       existingSize = fs.statSync(installerPath).size
       if (remoteSize > 0 && existingSize === remoteSize) {
-        emitLog(`已存在完整的 ${filename}，跳过下载`)
+        emitLog({ key: 'installer.downloadSkip', params: { filename } })
         onLog(`已存在安装包，跳过下载`)
         onProgress(100, formatBytes(existingSize), formatBytes(remoteSize))
         return { success: true, installerPath, version: nodeVersion }
       }
       if (existingSize > 0 && remoteSize > 0 && existingSize < remoteSize) {
-        emitLog(
-          `发现未完成的下载 (${formatBytes(existingSize)}/${formatBytes(remoteSize)})，将断点续传`,
-        )
+        emitLog({
+          key: 'installer.downloadResume',
+          params: { size: formatBytes(existingSize) },
+        })
         onLog(`断点续传: 已下载 ${formatBytes(existingSize)}`)
       } else if (existingSize > 0) {
         fs.unlinkSync(installerPath)
@@ -526,9 +556,14 @@ async function downloadNodeInstaller(options = {}) {
       }
     }
 
-    emitLog(
-      `开始下载 Node.js v${nodeVersion} ${filename} (${remoteSize > 0 ? formatBytes(remoteSize) : '未知大小'})`,
-    )
+    emitLog({
+      key: 'installer.downloadStart',
+      params: {
+        version: nodeVersion,
+        filename,
+        size: remoteSize > 0 ? formatBytes(remoteSize) : '?',
+      },
+    })
     onLog(`正在下载 Node.js v${nodeVersion} ${filename}...`)
 
     // 5. 获取代理配置
@@ -589,7 +624,7 @@ async function downloadNodeInstaller(options = {}) {
             tlsReq.on('error', reject)
           })
           connectReq.on('error', (err) => {
-            emitLog(`代理连接失败，尝试直连: ${err.message}`, 'warn')
+            emitLog({ key: 'installer.proxyConnectFailed', params: { error: err.message } }, 'warn')
             doDirectDownload(url, resumeFrom, resolve, reject)
           })
           connectReq.end()
@@ -631,7 +666,7 @@ async function downloadNodeInstaller(options = {}) {
 
         let startOffset = resumeFrom
         if (resumeFrom > 0 && res.statusCode === 200) {
-          emitLog('服务器不支持断点续传，将从头下载')
+          emitLog({ key: 'installer.noResumeSupport' })
           onLog('服务器不支持断点续传，从头下载')
           startOffset = 0
         }
@@ -675,12 +710,15 @@ async function downloadNodeInstaller(options = {}) {
             if (totalSize > 0 && downloaded !== totalSize) {
               reject(
                 new Error(
-                  `下载不完整: 预期 ${formatBytes(totalSize)}，实际 ${formatBytes(downloaded)}`,
+                  `download incomplete: expected ${formatBytes(totalSize)}, got ${formatBytes(downloaded)}`,
                 ),
               )
               return
             }
-            emitLog(`下载完成: ${installerPath} (${formatBytes(downloaded)})`)
+            emitLog({
+              key: 'installer.downloadComplete',
+              params: { path: installerPath, size: formatBytes(downloaded) },
+            })
             onLog(`下载完成！(${formatBytes(downloaded)})`)
             onProgress(100, formatBytes(downloaded), formatBytes(totalSize || downloaded))
             resolve()
@@ -698,7 +736,7 @@ async function downloadNodeInstaller(options = {}) {
 
     return { success: true, installerPath, version: nodeVersion }
   } catch (err) {
-    emitLog(`Node.js 安装包下载失败: ${err.message}`, 'error')
+    emitLog({ key: 'installer.downloadFailed', params: { error: err.message } }, 'error')
     onLog(`下载失败: ${err.message}`)
     return { success: false, error: err.message }
   }
@@ -714,7 +752,7 @@ function openNodeInstaller(installerPath) {
   const fs = require('fs')
 
   if (!fs.existsSync(installerPath)) {
-    return { success: false, error: `文件不存在: ${installerPath}` }
+    return { success: false, error: `file not found: ${installerPath}` }
   }
 
   try {
@@ -725,10 +763,9 @@ function openNodeInstaller(installerPath) {
     } else {
       exec(`xdg-open "${installerPath}"`)
     }
-    emitLog(`已打开安装包: ${installerPath}`)
     return { success: true }
   } catch (err) {
-    emitLog(`打开安装包失败: ${err.message}`, 'error')
+    emitLog({ key: 'installer.openInstallerFailed', params: { error: err.message } }, 'error')
     return { success: false, error: err.message }
   }
 }
@@ -820,11 +857,14 @@ async function detectRegion() {
     ])
     const json = JSON.parse(data)
     _regionCache = json.countryCode === 'CN' ? 'cn' : 'intl'
-    emitLog(`地区检测: ${json.countryCode} → 使用${_regionCache === 'cn' ? '国内镜像' : '官方源'}`)
+    emitLog({
+      key: _regionCache === 'cn' ? 'installer.regionDetectedCn' : 'installer.regionDetectedIntl',
+      params: { country: json.countryCode },
+    })
   } catch {
     // 检测失败默认国内（国内用户更多，且镜像对国外用户也可用）
     _regionCache = 'cn'
-    emitLog('地区检测失败，默认使用国内镜像')
+    emitLog({ key: 'installer.regionDetectFailed' })
   }
 
   return _regionCache

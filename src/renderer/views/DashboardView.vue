@@ -5,6 +5,7 @@
    */
   import { ref, computed, onMounted, onUnmounted } from 'vue'
   import { useRouter } from 'vue-router'
+  import { useI18n } from 'vue-i18n'
   import { ElMessage } from 'element-plus'
   import { useInstanceStore } from '../stores/instance.js'
   import { useServiceStore } from '../stores/service.js'
@@ -15,6 +16,7 @@
   const instanceStore = useInstanceStore()
   const serviceStore = useServiceStore()
   const configStore = useConfigStore()
+  const { t } = useI18n()
 
   const backend = getBackend()
   const monitor = backend?.monitor ?? null
@@ -30,10 +32,10 @@
 
   // 健康检查
   const healthItems = ref([
-    { label: 'Node.js', status: 'unknown', detail: '检测中...' },
-    { label: 'OpenClaw', status: 'unknown', detail: '检测中...' },
-    { label: 'Gateway', status: 'unknown', detail: '检测中...' },
-    { label: '配置文件', status: 'unknown', detail: '检测中...' },
+    { label: 'Node.js', status: 'unknown', detail: t('status.checking') },
+    { label: 'OpenClaw', status: 'unknown', detail: t('status.checking') },
+    { label: 'Gateway', status: 'unknown', detail: t('status.checking') },
+    { label: t('dashboard.configFile'), status: 'unknown', detail: t('status.checking') },
   ])
 
   // OpenClaw 更新状态
@@ -44,11 +46,11 @@
   const updateLog = ref('')
 
   // 最近日志
-  const recentLogs = ref([{ time: '--:--:--', level: 'info', message: '等待加载...' }])
+  const recentLogs = ref([{ time: '--:--:--', level: 'info', message: t('common.loading') }])
 
   // 当前实例名称
   const currentInstanceName = computed(() => {
-    return instanceStore.activeInstance?.name || '本地实例'
+    return instanceStore.activeInstance?.name || t('dashboard.localInstance')
   })
 
   // 通道定义（与 ChannelsView 一致）
@@ -149,17 +151,25 @@
       if (nodeResult.exitCode === 0) {
         healthItems.value[0] = { label: 'Node.js', status: 'ok', detail: nodeResult.stdout.trim() }
       } else {
-        healthItems.value[0] = { label: 'Node.js', status: 'error', detail: '未安装' }
+        healthItems.value[0] = {
+          label: 'Node.js',
+          status: 'error',
+          detail: t('status.notInstalled'),
+        }
       }
     } catch {
-      healthItems.value[0] = { label: 'Node.js', status: 'error', detail: '检测失败' }
+      healthItems.value[0] = {
+        label: 'Node.js',
+        status: 'error',
+        detail: t('dashboard.detectFailed'),
+      }
     }
 
     // OpenClaw 检测
     healthItems.value[1] = {
       label: 'OpenClaw',
       status: openclawVersion.value !== '--' ? 'ok' : 'error',
-      detail: openclawVersion.value !== '--' ? openclawVersion.value : '未安装',
+      detail: openclawVersion.value !== '--' ? openclawVersion.value : t('status.notInstalled'),
     }
 
     // Gateway 状态
@@ -168,9 +178,9 @@
       status: serviceStore.gatewayRunning ? 'ok' : 'warn',
       detail: serviceStore.gatewayRunning
         ? gatewayReachable.value
-          ? `端口 ${serviceStore.gatewayPort} 可达`
-          : '运行中但端口不可达'
-        : '未运行',
+          ? t('dashboard.portReachable', { port: serviceStore.gatewayPort })
+          : t('dashboard.runningButUnreachable')
+        : t('dashboard.notRunning'),
     }
 
     // 配置文件检测
@@ -178,12 +188,16 @@
       const homeDir = await executor.getHomeDir()
       const configExists = await executor.exists(`${homeDir}/.openclaw/openclaw.json`)
       healthItems.value[3] = {
-        label: '配置文件',
+        label: t('dashboard.configFile'),
         status: configExists ? 'ok' : 'warn',
-        detail: configExists ? '已找到' : '不存在',
+        detail: configExists ? t('dashboard.found') : t('dashboard.notFound'),
       }
     } catch {
-      healthItems.value[3] = { label: '配置文件', status: 'warn', detail: '检测失败' }
+      healthItems.value[3] = {
+        label: t('dashboard.configFile'),
+        status: 'warn',
+        detail: t('dashboard.detectFailed'),
+      }
     }
   }
 
@@ -197,14 +211,14 @@
     try {
       if (serviceStore.gatewayRunning) {
         await executor.exec('openclaw daemon stop', { timeout: 15000 })
-        ElMessage.success('Gateway 已停止')
+        ElMessage.success(t('service.gatewayStopped'))
       } else {
         await executor.exec('openclaw daemon start', { timeout: 15000 })
-        ElMessage.success('Gateway 已启动')
+        ElMessage.success(t('service.gatewayStarted'))
       }
       setTimeout(refreshAll, 1500)
     } catch (err) {
-      ElMessage.error(`操作失败: ${err.message}`)
+      ElMessage.error(t('dashboard.operationFailed', { error: err.message }))
     }
   }
 
@@ -216,10 +230,10 @@
     if (!executor) return
     try {
       await executor.exec('openclaw daemon restart', { timeout: 20000 })
-      ElMessage.success('Gateway 已重启')
+      ElMessage.success(t('service.gatewayRestarted'))
       setTimeout(refreshAll, 1500)
     } catch (err) {
-      ElMessage.error(`重启失败: ${err.message}`)
+      ElMessage.error(t('dashboard.restartFailed', { error: err.message }))
     }
   }
 
@@ -244,7 +258,7 @@
       hasUpdate.value = result.hasUpdate
       latestVersion.value = result.latestVersion
       if (result.hasUpdate) {
-        ElMessage.info(`OpenClaw 有新版本可用: ${result.latestVersion}`)
+        ElMessage.info(t('dashboard.newVersionAvailable', { version: result.latestVersion }))
       }
     } catch (err) {
       console.warn('检查 OpenClaw 更新失败:', err.message)
@@ -274,7 +288,7 @@
         ElMessage.error(result.message)
       }
     } catch (err) {
-      ElMessage.error(`更新失败: ${err.message}`)
+      ElMessage.error(t('dashboard.updateFailed', { error: err.message }))
     } finally {
       updating.value = false
     }
@@ -288,7 +302,7 @@
       <el-card class="status-card hover-card" shadow="never">
         <div class="card-header">
           <el-icon :size="20" color="var(--ct-primary)"><ElIconMonitor /></el-icon>
-          <span>服务状态</span>
+          <span>{{ $t('dashboard.serviceStatus') }}</span>
         </div>
         <div class="card-value">
           <span
@@ -296,19 +310,21 @@
             :class="serviceStore.gatewayRunning ? 'status-dot--running' : 'status-dot--stopped'"
           />
           <span :class="serviceStore.gatewayRunning ? 'text-success' : 'text-danger'">
-            {{ serviceStore.gatewayRunning ? '运行中' : '已停止' }}
+            {{ serviceStore.gatewayRunning ? $t('status.running') : $t('status.stopped') }}
           </span>
         </div>
         <div class="card-footer">
-          端口 {{ serviceStore.gatewayPort }}
-          <span v-if="lastRefreshed" class="refresh-hint"> | 更新于 {{ lastRefreshed }}</span>
+          {{ $t('dashboard.port') }} {{ serviceStore.gatewayPort }}
+          <span v-if="lastRefreshed" class="refresh-hint">
+            | {{ $t('dashboard.updatedAt') }} {{ lastRefreshed }}</span
+          >
         </div>
       </el-card>
 
       <el-card class="status-card hover-card" shadow="never">
         <div class="card-header">
           <el-icon :size="20" color="var(--ct-success)"><ElIconTimer /></el-icon>
-          <span>OpenClaw 版本</span>
+          <span>{{ $t('dashboard.openclawVersion') }}</span>
           <el-tag
             v-if="hasUpdate"
             type="warning"
@@ -316,13 +332,13 @@
             effect="plain"
             style="margin-left: auto"
           >
-            有更新
+            {{ $t('dashboard.hasUpdate') }}
           </el-tag>
         </div>
         <div class="card-value">{{ openclawVersion }}</div>
         <div class="card-footer">
           <template v-if="hasUpdate && latestVersion">
-            最新: {{ latestVersion }}
+            {{ $t('dashboard.latest') }}: {{ latestVersion }}
             <el-button
               type="primary"
               size="small"
@@ -331,11 +347,11 @@
               @click="performOpenclawUpdate"
               style="margin-left: 8px"
             >
-              立即更新
+              {{ $t('dashboard.updateNow') }}
             </el-button>
           </template>
           <template v-else>
-            实例: {{ currentInstanceName }}
+            {{ $t('dashboard.instance') }}: {{ currentInstanceName }}
             <el-button
               size="small"
               link
@@ -343,7 +359,7 @@
               @click="checkOpenclawUpdate"
               style="margin-left: 8px"
             >
-              检查更新
+              {{ $t('dashboard.checkUpdate') }}
             </el-button>
           </template>
         </div>
@@ -352,14 +368,14 @@
       <el-card class="status-card hover-card" shadow="never">
         <div class="card-header">
           <el-icon :size="20" color="var(--ct-warning)"><ElIconChatDotRound /></el-icon>
-          <span>活跃通道</span>
+          <span>{{ $t('dashboard.activeChannels') }}</span>
         </div>
         <div class="card-value">{{ serviceStore.activeChannels.length }}</div>
         <div class="card-footer">
           {{
             serviceStore.activeChannels.length > 0
               ? serviceStore.activeChannels.join(', ')
-              : '无活跃通道'
+              : $t('dashboard.noActiveChannels')
           }}
         </div>
       </el-card>
@@ -369,7 +385,7 @@
     <div class="dashboard-middle">
       <el-card class="quick-actions" shadow="never">
         <template #header>
-          <span class="section-title">快速操作</span>
+          <span class="section-title">{{ $t('dashboard.quickActions') }}</span>
         </template>
         <div class="action-buttons">
           <el-button
@@ -381,30 +397,34 @@
               <ElIconVideoPlay v-if="!serviceStore.gatewayRunning" />
               <ElIconVideoPause v-else />
             </el-icon>
-            {{ serviceStore.gatewayRunning ? '停止服务' : '启动服务' }}
+            {{
+              serviceStore.gatewayRunning
+                ? $t('dashboard.stopService')
+                : $t('dashboard.startService')
+            }}
           </el-button>
           <el-button size="large" @click="handleRestart">
             <el-icon><ElIconRefresh /></el-icon>
-            重启服务
+            {{ $t('dashboard.restartService') }}
           </el-button>
           <el-button size="large" @click="goLogs">
             <el-icon><ElIconDocument /></el-icon>
-            查看日志
+            {{ $t('dashboard.viewLogs') }}
           </el-button>
           <el-button size="large" @click="goTest">
             <el-icon><ElIconChatLineSquare /></el-icon>
-            发送测试
+            {{ $t('dashboard.sendTest') }}
           </el-button>
           <el-button size="large" :loading="statusLoading" @click="refreshAll">
             <el-icon><ElIconRefresh /></el-icon>
-            刷新状态
+            {{ $t('dashboard.refreshStatus') }}
           </el-button>
         </div>
       </el-card>
 
       <el-card class="health-check" shadow="never">
         <template #header>
-          <span class="section-title">健康检查</span>
+          <span class="section-title">{{ $t('dashboard.healthCheck') }}</span>
         </template>
         <div class="health-list">
           <div v-for="item in healthItems" :key="item.label" class="health-item">
@@ -435,7 +455,7 @@
     <!-- 状态详情 -->
     <el-card v-if="statusRaw" class="recent-logs" shadow="never">
       <template #header>
-        <span class="section-title">状态详情</span>
+        <span class="section-title">{{ $t('dashboard.statusDetail') }}</span>
       </template>
       <pre class="status-output selectable">{{ statusRaw }}</pre>
     </el-card>
@@ -443,9 +463,9 @@
     <!-- 通道概览 -->
     <el-card class="overview-card" shadow="never">
       <template #header>
-        <span class="section-title">通道概览</span>
+        <span class="section-title">{{ $t('dashboard.channelOverview') }}</span>
         <el-tag size="small" type="info" effect="plain" style="margin-left: 8px">
-          {{ enabledChannels.length }} 个已启用
+          {{ $t('dashboard.enabledCount', { count: enabledChannels.length }) }}
         </el-tag>
       </template>
       <div v-if="enabledChannels.length > 0" class="channel-tags">
@@ -455,15 +475,15 @@
           <el-icon :size="12" color="var(--ct-success)"><ElIconCircleCheck /></el-icon>
         </div>
       </div>
-      <el-empty v-else description="暂无已启用的通道" :image-size="48" />
+      <el-empty v-else :description="$t('dashboard.noEnabledChannels')" :image-size="48" />
     </el-card>
 
     <!-- 供应商 & 模型 -->
     <el-card class="overview-card" shadow="never">
       <template #header>
-        <span class="section-title">供应商 & 模型</span>
+        <span class="section-title">{{ $t('dashboard.providersAndModels') }}</span>
         <el-tag size="small" type="info" effect="plain" style="margin-left: 8px">
-          {{ providerList.length }} 个供应商
+          {{ $t('dashboard.providerCount', { count: providerList.length }) }}
         </el-tag>
       </template>
       <div v-if="providerList.length > 0" class="provider-list">
@@ -473,7 +493,7 @@
             <span class="provider-name">{{ provider.name }}</span>
             <el-tag size="small" effect="plain" type="info">{{ provider.apiType }}</el-tag>
             <el-tag size="small" effect="plain" style="margin-left: 4px">
-              {{ provider.models.length }} 模型
+              {{ $t('dashboard.modelCount', { count: provider.models.length }) }}
             </el-tag>
           </div>
           <div v-if="provider.models.length > 0" class="model-list">
@@ -488,18 +508,18 @@
               }"
               :cell-style="{ background: 'transparent', color: 'var(--ct-text-regular)' }"
             >
-              <el-table-column prop="id" label="模型 ID" min-width="200" />
-              <el-table-column prop="name" label="名称" min-width="200">
+              <el-table-column prop="id" :label="$t('dashboard.modelId')" min-width="200" />
+              <el-table-column prop="name" :label="$t('dashboard.modelName')" min-width="200">
                 <template #default="{ row }">
                   {{ row.name || row.id }}
                 </template>
               </el-table-column>
             </el-table>
           </div>
-          <div v-else class="no-models">暂无模型配置</div>
+          <div v-else class="no-models">{{ $t('dashboard.noModels') }}</div>
         </div>
       </div>
-      <el-empty v-else description="暂无供应商配置" :image-size="48" />
+      <el-empty v-else :description="$t('dashboard.noProviders')" :image-size="48" />
     </el-card>
   </div>
 </template>

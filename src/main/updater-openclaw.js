@@ -131,11 +131,14 @@ async function performUpdate(executor, version, onProgress) {
 
   eventBus.emit(UpdateEvents.OPENCLAW_UPDATE_PROGRESS, {
     stage: 'installing',
-    message: `正在更新 OpenClaw 到 ${targetVersion}...`,
+    message: { key: 'mainProcess.updaterInstalling', params: { version: targetVersion } },
   })
 
   if (onProgress) {
-    onProgress({ stage: 'installing', message: `正在执行: ${command}` })
+    onProgress({
+      stage: 'installing',
+      message: { key: 'mainProcess.updaterExecuting', params: { command } },
+    })
   }
 
   try {
@@ -162,24 +165,44 @@ async function performUpdate(executor, version, onProgress) {
       const newVersion = await getCurrentVersion(executor)
       if (newVersion) {
         eventBus.emit(UpdateEvents.OPENCLAW_UPDATE_COMPLETE, { version: newVersion })
-        return { success: true, version: newVersion, message: `更新成功，当前版本: ${newVersion}` }
+        return {
+          success: true,
+          version: newVersion,
+          message: { key: 'mainProcess.updaterSuccess', params: { version: newVersion } },
+        }
       }
-      return { success: false, version: null, message: '更新完成但无法验证版本' }
+      return {
+        success: false,
+        version: null,
+        message: { key: 'mainProcess.updaterVerifyFailed' },
+      }
     } else {
       // 非流式执行
       const result = await executor.exec(command, { timeout: 120000 })
       if (result.exitCode === 0) {
         const newVersion = await getCurrentVersion(executor)
         eventBus.emit(UpdateEvents.OPENCLAW_UPDATE_COMPLETE, { version: newVersion })
-        return { success: true, version: newVersion, message: `更新成功，当前版本: ${newVersion}` }
+        return {
+          success: true,
+          version: newVersion,
+          message: { key: 'mainProcess.updaterSuccess', params: { version: newVersion } },
+        }
       }
-      const errorMsg = result.stderr || result.stdout || '未知错误'
+      const errorMsg = result.stderr || result.stdout || 'unknown error'
       eventBus.emit(UpdateEvents.OPENCLAW_UPDATE_ERROR, { message: errorMsg })
-      return { success: false, version: null, message: `更新失败: ${errorMsg}` }
+      return {
+        success: false,
+        version: null,
+        message: { key: 'mainProcess.updaterFailed', params: { error: errorMsg } },
+      }
     }
   } catch (err) {
     eventBus.emit(UpdateEvents.OPENCLAW_UPDATE_ERROR, { message: err.message })
-    return { success: false, version: null, message: `更新失败: ${err.message}` }
+    return {
+      success: false,
+      version: null,
+      message: { key: 'mainProcess.updaterFailed', params: { error: err.message } },
+    }
   }
 }
 

@@ -4,11 +4,14 @@
    * 环境检测 + 启停控制 + 实时日志终端
    */
   import { ref, onMounted, onUnmounted, nextTick, computed, reactive } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { useServiceStore } from '../stores/service'
   import { useLogsStore } from '../stores/logs'
   import { useConfigStore } from '../stores/config'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { getBackend } from '../utils/nw-bridge'
+
+  const { t } = useI18n()
 
   const serviceStore = useServiceStore()
   const logsStore = useLogsStore()
@@ -46,8 +49,11 @@
   const nodeDownloading = ref(false)
   const nodeDownloadProgress = ref(0) // 0-100
   const nodeDownloadStatus = ref('') // 状态文字
-  // OpenClaw 安装中
-  const openclawInstalling = ref(false)
+  // OpenClaw 安装状态
+  const installStep = ref(0) // 0~3: 检测环境 / 下载安装 / 验证安装 / 完成
+  const installStatus = ref('idle') // idle | running | success | error | cancelled
+  const installMessage = ref('')
+  const installAbort = ref(null) // AbortController 实例
   // 安装日志
   const installLogs = ref([])
   // npm registry
@@ -77,7 +83,7 @@
       // 缓存到 store，避免切换页面重复检测
       serviceStore.envCache = { node: result.node, npm: result.npm, openclaw: result.openclaw }
     } catch (err) {
-      ElMessage.error(`环境检测失败: ${err.message}`)
+      ElMessage.error(t('service.envCheckFailed', { error: err.message }))
     } finally {
       env.checking = false
     }
@@ -98,14 +104,14 @@
 
     nodeDownloading.value = true
     nodeDownloadProgress.value = 0
-    nodeDownloadStatus.value = '正在获取版本信息...'
+    nodeDownloadStatus.value = t('service.gettingVersionInfo')
 
     try {
       // 1. 下载安装包到 ~/Downloads
       const result = await installer.downloadNodeInstaller({
         onProgress: (percent, downloaded, total) => {
           nodeDownloadProgress.value = percent
-          nodeDownloadStatus.value = `下载中 ${downloaded} / ${total}`
+          nodeDownloadStatus.value = t('service.downloadingProgress', { downloaded, total })
         },
         onLog: (msg) => {
           nodeDownloadStatus.value = msg
@@ -113,22 +119,22 @@
       })
 
       if (!result.success) {
-        nodeDownloadStatus.value = `下载失败: ${result.error}`
-        ElMessage.error(`下载失败: ${result.error}`)
+        nodeDownloadStatus.value = t('service.downloadFailed', { error: result.error })
+        ElMessage.error(t('service.downloadFailed', { error: result.error }))
         return
       }
 
       // 2. 打开安装包
       const openResult = installer.openNodeInstaller(result.installerPath)
       if (openResult.success) {
-        nodeDownloadStatus.value = '安装程序已打开，请完成安装后点击"重新检测"'
-        ElMessage.success(`Node.js v${result.version} 安装包已打开，请在安装向导中完成安装`)
+        nodeDownloadStatus.value = t('service.installerOpened')
+        ElMessage.success(t('service.nodeInstallerOpenedMsg', { version: result.version }))
       } else {
-        nodeDownloadStatus.value = `打开安装包失败: ${openResult.error}`
-        ElMessage.error(`打开安装包失败: ${openResult.error}`)
+        nodeDownloadStatus.value = t('service.openInstallerFailed', { error: openResult.error })
+        ElMessage.error(t('service.openInstallerFailed', { error: openResult.error }))
       }
     } catch (err) {
-      nodeDownloadStatus.value = `出错: ${err.message}`
+      nodeDownloadStatus.value = t('service.error', { error: err.message })
       ElMessage.error(err.message)
     } finally {
       nodeDownloading.value = false
@@ -136,31 +142,63 @@
   }
 
   /**
-   * 一键安装 OpenClaw
+   * 一键安装 OpenClaw（带步骤指示 + 取消）
    */
   async function handleInstallOpenClaw() {
     if (!installer || !executor) return
 
-    openclawInstalling.value = true
+    installStep.value = 0
+    installStatus.value = 'running'
+    installMessage.value = ''
     installLogs.value = []
+    const controller = new AbortController()
+    installAbort.value = controller
+
     try {
       const opts = {
         onLog: (text) => installLogs.value.push(text),
+        onStep: (step, msg) => {
+          installStep.value = step
+          installMessage.value = msg
+        },
+        signal: controller.signal,
       }
       if (npmRegistry.value) {
         opts.registry = npmRegistry.value
       }
       const result = await installer.installOpenClaw(executor, opts)
       if (result.success) {
-        ElMessage.success(`OpenClaw ${result.version} 安装成功！`)
+        installStep.value = 3
+        installStatus.value = 'success'
+        installMessage.value = t('service.installSuccess', { version: result.version })
+        ElMessage.success(t('service.installSuccess', { version: result.version }))
         await checkEnvironment()
+      } else if (controller.signal.aborted) {
+        installStatus.value = 'cancelled'
+        installMessage.value = t('service.installCancelled')
       } else {
-        ElMessage.error(`安装失败: ${result.error}`)
+        installStatus.value = 'error'
+        installMessage.value = result.error || t('service.installFailed')
+        ElMessage.error(t('service.installFailedMsg', { error: result.error }))
       }
     } catch (err) {
-      ElMessage.error(err.message)
-    } finally {
-      openclawInstalling.value = false
+      if (controller.signal.aborted) {
+        installStatus.value = 'cancelled'
+        installMessage.value = t('service.installCancelled')
+      } else {
+        installStatus.value = 'error'
+        installMessage.value = err.message
+        ElMessage.error(err.message)
+      }
+    }
+  }
+
+  /**
+   * 取消安装 OpenClaw
+   */
+  function cancelInstallOpenClaw() {
+    if (installAbort.value) {
+      installAbort.value.abort()
     }
   }
 
@@ -171,18 +209,18 @@
    */
   async function startService() {
     if (!processManager || !executor) {
-      ElMessage.warning('主进程模块未加载，无法操作')
+      ElMessage.warning(t('service.mainProcessNotLoaded'))
       return
     }
 
     // 环境检查
     if (!envReady.value) {
-      ElMessage.warning('请先完成环境检测，确保 Node.js 和 OpenClaw 已安装')
+      ElMessage.warning(t('service.envNotReady'))
       return
     }
 
     serviceStore.setLoading(true)
-    logsStore.addEntry({ text: '正在启动 Gateway 服务...', type: 'system', level: 'info' })
+    logsStore.addEntry({ text: t('service.startingGateway'), type: 'system', level: 'info' })
 
     try {
       if (runMode.value === 'daemon') {
@@ -199,11 +237,15 @@
         serviceStore.runMode = 'foreground'
       }
       serviceStore.updateFromStatus(processManager.status)
-      ElMessage.success('Gateway 已启动')
+      ElMessage.success(t('service.gatewayStarted'))
     } catch (err) {
       serviceStore.setError(err.message)
-      logsStore.addEntry({ text: `启动失败: ${err.message}`, type: 'system', level: 'error' })
-      ElMessage.error(`启动失败: ${err.message}`)
+      logsStore.addEntry({
+        text: t('service.startFailed', { error: err.message }),
+        type: 'system',
+        level: 'error',
+      })
+      ElMessage.error(t('service.startFailed', { error: err.message }))
     } finally {
       serviceStore.setLoading(false)
     }
@@ -216,16 +258,16 @@
     if (!processManager || !executor) return
 
     serviceStore.setLoading(true)
-    logsStore.addEntry({ text: '正在停止 Gateway 服务...', type: 'system', level: 'info' })
+    logsStore.addEntry({ text: t('service.stoppingGateway'), type: 'system', level: 'info' })
 
     try {
       await processManager.stop(executor)
       serviceStore.updateFromStatus(processManager.status)
-      logsStore.addEntry({ text: 'Gateway 已停止', type: 'system', level: 'info' })
-      ElMessage.success('Gateway 已停止')
+      logsStore.addEntry({ text: t('service.gatewayStopped'), type: 'system', level: 'info' })
+      ElMessage.success(t('service.gatewayStopped'))
     } catch (err) {
       serviceStore.setError(err.message)
-      ElMessage.error(`停止失败: ${err.message}`)
+      ElMessage.error(t('service.stopFailed', { error: err.message }))
     } finally {
       serviceStore.setLoading(false)
     }
@@ -238,7 +280,7 @@
     if (!processManager || !executor) return
 
     serviceStore.setLoading(true)
-    logsStore.addEntry({ text: '正在重启 Gateway 服务...', type: 'system', level: 'info' })
+    logsStore.addEntry({ text: t('service.restartingGateway'), type: 'system', level: 'info' })
 
     try {
       if (runMode.value === 'daemon') {
@@ -253,10 +295,10 @@
         })
       }
       serviceStore.updateFromStatus(processManager.status)
-      ElMessage.success('Gateway 已重启')
+      ElMessage.success(t('service.gatewayRestarted'))
     } catch (err) {
       serviceStore.setError(err.message)
-      ElMessage.error(`重启失败: ${err.message}`)
+      ElMessage.error(t('service.restartFailed', { error: err.message }))
     } finally {
       serviceStore.setLoading(false)
     }
@@ -272,9 +314,9 @@
       const result = await daemonManager.install(executor)
       if (result.success) {
         serviceStore.daemonInstalled = true
-        ElMessage.success('系统服务已安装')
+        ElMessage.success(t('service.daemonInstalled'))
       } else {
-        ElMessage.error(`安装失败: ${result.output}`)
+        ElMessage.error(t('service.daemonInstallFailed', { error: result.output }))
       }
     } catch (err) {
       ElMessage.error(err.message)
@@ -288,13 +330,13 @@
     if (!daemonManager || !executor) return
 
     try {
-      await ElMessageBox.confirm('确定要卸载系统服务吗？', '确认')
+      await ElMessageBox.confirm(t('service.confirmUninstallDaemon'), t('common.confirm'))
       const result = await daemonManager.uninstall(executor)
       if (result.success) {
         serviceStore.daemonInstalled = false
-        ElMessage.success('系统服务已卸载')
+        ElMessage.success(t('service.daemonUninstalled'))
       } else {
-        ElMessage.error(`卸载失败: ${result.output}`)
+        ElMessage.error(t('service.daemonUninstallFailed', { error: result.output }))
       }
     } catch (err) {
       if (err !== 'cancel') {
@@ -313,10 +355,10 @@
       const result = await daemonManager.setAutoStart(executor, val)
       if (result.success) {
         serviceStore.autoStartEnabled = val
-        ElMessage.success(val ? '已启用开机自启' : '已禁用开机自启')
+        ElMessage.success(val ? t('service.autoStartEnabled') : t('service.autoStartDisabled'))
       } else {
         serviceStore.autoStartEnabled = !val
-        ElMessage.error(`操作失败: ${result.output}`)
+        ElMessage.error(t('service.autoStartFailed', { error: result.output }))
       }
     } catch (err) {
       serviceStore.autoStartEnabled = !val
@@ -401,20 +443,20 @@
             return { channel: 'output', message: line, status: 'info' }
           }
         })
-        ElMessage.success('通道探测完成')
+        ElMessage.success(t('service.channelProbeComplete'))
       } else {
         channelProbe.results = [
           {
             channel: 'error',
             status: 'error',
-            message: result.stderr || result.stdout || '探测失败',
+            message: result.stderr || result.stdout || t('service.probeFailed'),
           },
         ]
-        ElMessage.error('通道探测失败')
+        ElMessage.error(t('service.channelProbeFailed'))
       }
     } catch (err) {
       channelProbe.results = [{ channel: 'error', status: 'error', message: err.message }]
-      ElMessage.error(`探测出错: ${err.message}`)
+      ElMessage.error(t('service.probeError', { error: err.message }))
     } finally {
       channelProbe.running = false
     }
@@ -426,7 +468,7 @@
   async function handleSendTestMessage() {
     if (!executor) return
     if (!msgTest.target) {
-      ElMessage.warning('请输入目标地址')
+      ElMessage.warning(t('service.targetRequired'))
       return
     }
     msgTest.sending = true
@@ -442,15 +484,18 @@
       const cmd = args.join(' ')
       const result = await executor.exec(cmd, { timeout: 30000 })
       if (result.exitCode === 0) {
-        msgTest.result = { success: true, message: result.stdout || '消息发送成功' }
-        ElMessage.success('测试消息已发送')
+        msgTest.result = { success: true, message: result.stdout || t('service.msgSendSuccess') }
+        ElMessage.success(t('service.testMsgSent'))
       } else {
-        msgTest.result = { success: false, message: result.stderr || result.stdout || '发送失败' }
-        ElMessage.error('消息发送失败')
+        msgTest.result = {
+          success: false,
+          message: result.stderr || result.stdout || t('service.sendFailed'),
+        }
+        ElMessage.error(t('service.msgSendFailed'))
       }
     } catch (err) {
       msgTest.result = { success: false, message: err.message }
-      ElMessage.error(`发送出错: ${err.message}`)
+      ElMessage.error(t('service.sendError', { error: err.message }))
     } finally {
       msgTest.sending = false
     }
@@ -486,7 +531,7 @@
   async function handleApiTest() {
     if (!executor) return
     if (!apiTest.model) {
-      ElMessage.warning('请选择一个模型')
+      ElMessage.warning(t('service.selectModelRequired'))
       return
     }
 
@@ -520,14 +565,14 @@
         } catch {
           apiTest.response = { success: true, text: jsonStr, latency }
         }
-        ElMessage.success(`模型响应成功 (${latency}ms)`)
+        ElMessage.success(t('service.modelResponseSuccess', { latency }))
       } else {
         apiTest.response = { success: false, text: jsonStr || `HTTP ${httpCode}`, latency }
-        ElMessage.error(`请求失败: HTTP ${httpCode}`)
+        ElMessage.error(t('service.requestFailed', { code: httpCode }))
       }
     } catch (err) {
       apiTest.response = { success: false, text: err.message, latency: Date.now() - startTime }
-      ElMessage.error(`测试出错: ${err.message}`)
+      ElMessage.error(t('service.testError', { error: err.message }))
     } finally {
       apiTest.sending = false
     }
@@ -594,12 +639,12 @@
 
 <template>
   <div class="service-view">
-    <h3 class="page-heading">服务管理</h3>
+    <h3 class="page-heading">{{ $t('service.title') }}</h3>
 
     <!-- 后端不可用提示 -->
     <el-alert
       v-if="!backendReady"
-      title="当前不在 NW.js 环境中，服务管理功能不可用"
+      :title="$t('service.backendUnavailable')"
       type="warning"
       show-icon
       :closable="false"
@@ -610,17 +655,17 @@
     <el-card class="env-check-card" shadow="never">
       <template #header>
         <div class="card-header">
-          <span class="section-title">环境检测</span>
+          <span class="section-title">{{ $t('service.envCheck') }}</span>
           <el-button size="small" :loading="env.checking" @click="checkEnvironment">
             <el-icon v-if="!env.checking"><ElIconRefresh /></el-icon>
-            {{ env.checking ? '检测中...' : '重新检测' }}
+            {{ env.checking ? $t('service.checking') : $t('service.recheck') }}
           </el-button>
         </div>
       </template>
 
       <div v-if="!env.checked && !env.checking" class="env-hint">
         <el-icon :size="16"><ElIconInfoFilled /></el-icon>
-        <span>正在自动检测运行环境...</span>
+        <span>{{ $t('service.autoChecking') }}</span>
       </div>
 
       <div v-else class="env-items">
@@ -635,19 +680,21 @@
               <span class="env-item-name">Node.js</span>
               <span class="env-item-detail" v-if="env.node.installed">
                 v{{ env.node.version }}
-                <el-tag v-if="env.node.meetsRequirement" type="success" size="small"
-                  >符合要求</el-tag
-                >
-                <el-tag v-else type="danger" size="small">版本过低，需要 >= 22.12.0</el-tag>
-                <el-tag v-if="env.node.nodeSource === 'system'" type="success" size="small"
-                  >系统</el-tag
-                >
-                <el-tag v-else-if="env.node.nodeSource === 'bundled'" type="warning" size="small"
-                  >内置</el-tag
-                >
+                <el-tag v-if="env.node.meetsRequirement" type="success" size="small">{{
+                  $t('service.meetsRequirement')
+                }}</el-tag>
+                <el-tag v-else type="danger" size="small">{{ $t('service.versionTooLow') }}</el-tag>
+                <el-tag v-if="env.node.nodeSource === 'system'" type="success" size="small">{{
+                  $t('service.sourceSystem')
+                }}</el-tag>
+                <el-tag v-else-if="env.node.nodeSource === 'bundled'" type="warning" size="small">{{
+                  $t('service.sourceBundled')
+                }}</el-tag>
               </span>
               <span class="env-item-path" v-if="env.node.nodePath">{{ env.node.nodePath }}</span>
-              <span class="env-item-detail text-danger" v-else>未安装</span>
+              <span class="env-item-detail text-danger" v-else>{{
+                $t('service.notInstalled')
+              }}</span>
             </div>
           </div>
           <div v-if="!env.node.meetsRequirement && env.checked" class="node-install-area">
@@ -657,7 +704,7 @@
               :loading="nodeDownloading"
               @click="handleInstallNode"
             >
-              {{ nodeDownloading ? '下载中...' : '下载安装 Node.js' }}
+              {{ nodeDownloading ? $t('service.downloading') : $t('service.downloadInstallNode') }}
             </el-button>
             <!-- 下载进度 -->
             <div v-if="nodeDownloading || nodeDownloadStatus" class="node-download-progress">
@@ -682,7 +729,9 @@
             <div class="env-item-info">
               <span class="env-item-name">npm</span>
               <span class="env-item-detail" v-if="env.npm.installed">v{{ env.npm.version }}</span>
-              <span class="env-item-detail text-warning" v-else>未安装（随 Node.js 附带）</span>
+              <span class="env-item-detail text-warning" v-else>{{
+                $t('service.npmNotInstalled')
+              }}</span>
             </div>
           </div>
         </div>
@@ -699,37 +748,89 @@
               <span class="env-item-detail" v-if="env.openclaw.installed">{{
                 env.openclaw.version
               }}</span>
-              <span class="env-item-detail text-danger" v-else>未安装</span>
+              <span class="env-item-detail text-danger" v-else>{{
+                $t('service.notInstalled')
+              }}</span>
             </div>
-          </div>
-          <div
-            v-if="!env.openclaw.installed && env.checked && env.node.meetsRequirement"
-            class="install-openclaw-area"
-          >
-            <el-input
-              v-model="npmRegistry"
-              size="small"
-              placeholder="npm 镜像源（可选）"
-              style="width: 200px; margin-right: 8px"
-              clearable
-            />
-            <el-button
-              type="primary"
-              size="small"
-              :loading="openclawInstalling"
-              @click="handleInstallOpenClaw"
-            >
-              {{ openclawInstalling ? '安装中...' : '一键安装 OpenClaw' }}
-            </el-button>
           </div>
         </div>
       </div>
 
-      <!-- 安装日志 -->
-      <div v-if="installLogs.length > 0" class="install-log">
-        <div class="install-log-header">安装日志</div>
-        <div class="install-log-content">
-          <div v-for="(line, i) in installLogs" :key="i" class="install-log-line">{{ line }}</div>
+      <!-- OpenClaw 安装面板 -->
+      <div
+        v-if="!env.openclaw.installed && env.checked && env.node.meetsRequirement"
+        class="install-panel"
+      >
+        <!-- 步骤指示器 -->
+        <el-steps :active="installStep" finish-status="success" size="small" class="install-steps">
+          <el-step :title="$t('service.stepCheckEnv')" />
+          <el-step :title="$t('service.stepDownloadInstall')" />
+          <el-step :title="$t('service.stepVerify')" />
+        </el-steps>
+
+        <!-- 步骤消息 -->
+        <div v-if="installMessage" class="install-step-message">
+          <el-icon v-if="installStatus === 'running'" class="is-loading"><ElIconLoading /></el-icon>
+          <el-icon v-else-if="installStatus === 'success'" class="text-success"
+            ><ElIconCircleCheck
+          /></el-icon>
+          <el-icon v-else-if="installStatus === 'error'" class="text-danger"
+            ><ElIconCircleClose
+          /></el-icon>
+          <el-icon v-else-if="installStatus === 'cancelled'" class="text-warning"
+            ><ElIconWarning
+          /></el-icon>
+          <span>{{ installMessage }}</span>
+        </div>
+
+        <!-- npm 镜像源 -->
+        <div class="install-registry-row">
+          <span class="install-registry-label">{{ $t('service.npmRegistry') }}:</span>
+          <el-input
+            v-model="npmRegistry"
+            size="small"
+            :placeholder="$t('service.npmRegistryPlaceholder')"
+            clearable
+            style="width: 320px"
+            :disabled="installStatus === 'running'"
+          />
+        </div>
+
+        <!-- 按钮区 -->
+        <div class="install-actions-row">
+          <el-button
+            v-if="installStatus === 'running'"
+            type="danger"
+            size="small"
+            @click="cancelInstallOpenClaw"
+          >
+            {{ $t('service.cancelInstall') }}
+          </el-button>
+          <el-button
+            type="primary"
+            size="small"
+            :loading="installStatus === 'running'"
+            :disabled="installStatus === 'running'"
+            @click="handleInstallOpenClaw"
+          >
+            {{
+              installStatus === 'running'
+                ? $t('service.installing')
+                : installStatus === 'error' || installStatus === 'cancelled'
+                  ? $t('service.reinstall')
+                  : $t('service.startInstall')
+            }}
+          </el-button>
+        </div>
+
+        <!-- 安装日志 -->
+        <div v-if="installLogs.length > 0" class="install-log">
+          <div class="install-log-header">{{ $t('service.installLog') }}</div>
+          <div class="install-log-content">
+            <div v-for="(line, i) in installLogs" :key="i" class="install-log-line">
+              {{ line }}
+            </div>
+          </div>
         </div>
       </div>
     </el-card>
@@ -747,7 +848,7 @@
           />
         </div>
         <div class="status-info">
-          <div class="status-label">Gateway 服务</div>
+          <div class="status-label">{{ $t('service.gatewayService') }}</div>
           <div
             class="status-value"
             :class="serviceStore.gatewayRunning ? 'text-success' : 'text-danger'"
@@ -758,8 +859,8 @@
         <!-- 运行模式选择 -->
         <div class="mode-selector">
           <el-radio-group v-model="runMode" size="small" :disabled="serviceStore.gatewayRunning">
-            <el-radio-button value="foreground">前台模式</el-radio-button>
-            <el-radio-button value="daemon">Daemon 模式</el-radio-button>
+            <el-radio-button value="foreground">{{ $t('service.foregroundMode') }}</el-radio-button>
+            <el-radio-button value="daemon">{{ $t('service.daemonMode') }}</el-radio-button>
           </el-radio-group>
         </div>
       </div>
@@ -770,15 +871,17 @@
           <span class="meta-value">{{ serviceStore.gatewayPid ?? '--' }}</span>
         </div>
         <div class="meta-item">
-          <span class="meta-label">运行时间</span>
+          <span class="meta-label">{{ $t('service.uptime') }}</span>
           <span class="meta-value">{{ serviceStore.uptimeText }}</span>
         </div>
         <div class="meta-item">
           <span class="meta-label">Daemon</span>
-          <span class="meta-value">{{ serviceStore.daemonInstalled ? '已安装' : '未安装' }}</span>
+          <span class="meta-value">{{
+            serviceStore.daemonInstalled ? $t('status.installed') : $t('status.notInstalled')
+          }}</span>
         </div>
         <div class="meta-item">
-          <span class="meta-label">端口</span>
+          <span class="meta-label">{{ $t('service.port') }}</span>
           <span class="meta-value">{{ serviceStore.gatewayPort }}</span>
         </div>
       </div>
@@ -795,14 +898,14 @@
             <ElIconVideoPlay v-if="!serviceStore.gatewayRunning" />
             <ElIconVideoPause v-else />
           </el-icon>
-          {{ serviceStore.gatewayRunning ? '停止' : '启动' }}
+          {{ serviceStore.gatewayRunning ? $t('service.stop') : $t('service.start') }}
         </el-button>
         <el-button
           :disabled="!serviceStore.gatewayRunning || serviceStore.loading"
           @click="restartService"
         >
           <el-icon><ElIconRefresh /></el-icon>
-          重启
+          {{ $t('service.restart') }}
         </el-button>
         <el-divider direction="vertical" />
         <el-button
@@ -812,16 +915,18 @@
           :disabled="!envReady"
           @click="installDaemon"
         >
-          安装系统服务
+          {{ $t('service.installDaemon') }}
         </el-button>
-        <el-button v-else type="warning" plain @click="uninstallDaemon"> 卸载系统服务 </el-button>
+        <el-button v-else type="warning" plain @click="uninstallDaemon">
+          {{ $t('service.uninstallDaemon') }}
+        </el-button>
       </div>
 
       <!-- 选项区 -->
       <div class="service-options">
-        <el-checkbox v-model="autoRestart">服务异常退出时自动重启</el-checkbox>
+        <el-checkbox v-model="autoRestart">{{ $t('service.autoRestart') }}</el-checkbox>
         <div class="auto-start-option">
-          <span>开机自启动</span>
+          <span>{{ $t('service.autoStart') }}</span>
           <el-switch
             :model-value="serviceStore.autoStartEnabled"
             @change="handleAutoStart"
@@ -833,7 +938,7 @@
       <!-- 环境未就绪提示 -->
       <el-alert
         v-if="env.checked && !envReady"
-        title="环境未就绪，请先安装 Node.js 和 OpenClaw 后再启动服务"
+        :title="$t('service.envNotReadyAlert')"
         type="warning"
         show-icon
         :closable="false"
@@ -856,7 +961,7 @@
     <el-card v-if="envReady && serviceStore.gatewayRunning" class="api-test-card" shadow="never">
       <template #header>
         <div class="card-header">
-          <span class="section-title">API 快速测试</span>
+          <span class="section-title">{{ $t('service.apiQuickTest') }}</span>
           <el-tag size="small" effect="plain" type="info">
             http://localhost:{{ serviceStore.gatewayPort }}/v1/chat/completions
           </el-tag>
@@ -867,7 +972,7 @@
         <el-select
           v-model="apiTest.model"
           size="small"
-          placeholder="选择模型"
+          :placeholder="$t('service.selectModel')"
           filterable
           style="width: 240px"
         >
@@ -881,7 +986,7 @@
         <el-input
           v-model="apiTest.message"
           size="small"
-          placeholder="输入测试消息"
+          :placeholder="$t('service.inputTestMsg')"
           style="flex: 1"
           @keyup.enter="handleApiTest"
         />
@@ -892,7 +997,7 @@
           :disabled="!apiTest.model"
           @click="handleApiTest"
         >
-          {{ apiTest.sending ? '请求中...' : '发送测试' }}
+          {{ apiTest.sending ? $t('service.requesting') : $t('service.sendTest') }}
         </el-button>
       </div>
 
@@ -904,7 +1009,7 @@
       >
         <div class="result-header">
           <el-tag :type="apiTest.response.success ? 'success' : 'danger'" size="small">
-            {{ apiTest.response.success ? '成功' : '失败' }}
+            {{ apiTest.response.success ? $t('common.success') : $t('common.failed') }}
           </el-tag>
           <span class="result-latency">{{ apiTest.response.latency }}ms</span>
           <span v-if="apiTest.response.model" class="result-model">{{
@@ -923,10 +1028,10 @@
     >
       <template #header>
         <div class="card-header">
-          <span class="section-title">通道测试</span>
+          <span class="section-title">{{ $t('service.channelTest') }}</span>
           <el-button size="small" :loading="channelProbe.running" @click="handleChannelProbe">
             <el-icon v-if="!channelProbe.running"><ElIconConnection /></el-icon>
-            {{ channelProbe.running ? '探测中...' : '探测所有通道' }}
+            {{ channelProbe.running ? $t('service.probing') : $t('service.probeAllChannels') }}
           </el-button>
         </div>
       </template>
@@ -954,12 +1059,12 @@
       </div>
 
       <!-- 发送测试消息 -->
-      <el-divider content-position="left">发送测试消息</el-divider>
+      <el-divider content-position="left">{{ $t('service.sendTestMsg') }}</el-divider>
       <div class="msg-test-form">
         <el-select
           v-model="msgTest.channel"
           size="small"
-          placeholder="通道（可选）"
+          :placeholder="$t('service.channelOptional')"
           clearable
           style="width: 140px"
         >
@@ -968,13 +1073,13 @@
         <el-input
           v-model="msgTest.target"
           size="small"
-          placeholder="目标地址（用户ID / 手机号 / 频道ID）"
+          :placeholder="$t('service.targetPlaceholder')"
           style="flex: 1"
         />
         <el-input
           v-model="msgTest.message"
           size="small"
-          placeholder="测试消息内容"
+          :placeholder="$t('service.testMsgContent')"
           style="width: 200px"
         />
         <el-button
@@ -984,7 +1089,7 @@
           :disabled="!msgTest.target"
           @click="handleSendTestMessage"
         >
-          发送
+          {{ $t('testPanel.send') }}
         </el-button>
       </div>
       <!-- 发送结果 -->
@@ -1003,7 +1108,7 @@
     <el-card class="log-terminal-card" shadow="never">
       <template #header>
         <div class="terminal-header">
-          <span class="section-title">实时日志</span>
+          <span class="section-title">{{ $t('service.realtimeLogs') }}</span>
           <div class="terminal-controls">
             <el-select v-model="logsStore.level" size="small" style="width: 100px">
               <el-option label="Debug" value="debug" />
@@ -1014,7 +1119,7 @@
             <el-input
               v-model="logsStore.searchKeyword"
               size="small"
-              placeholder="搜索..."
+              :placeholder="$t('common.search')"
               clearable
               style="width: 150px"
             />
@@ -1023,10 +1128,12 @@
               size="small"
               @click="logsStore.togglePause()"
             >
-              {{ logsStore.paused ? '恢复' : '暂停' }}
+              {{ logsStore.paused ? $t('service.resume') : $t('service.pause') }}
             </el-button>
-            <el-checkbox v-model="logsStore.autoScroll" size="small">自动滚动</el-checkbox>
-            <el-button text size="small" @click="clearLogs">清空</el-button>
+            <el-checkbox v-model="logsStore.autoScroll" size="small">{{
+              $t('service.autoScroll')
+            }}</el-checkbox>
+            <el-button text size="small" @click="clearLogs">{{ $t('common.clear') }}</el-button>
             <el-text size="small" type="info">
               {{ logsStore.filteredCount }} / {{ logsStore.totalCount }}
             </el-text>
@@ -1043,7 +1150,7 @@
           <span class="line-number">{{ i + 1 }}</span>
           <span class="line-content">{{ getLineText(entry) }}</span>
         </div>
-        <div v-if="displayLogs.length === 0" class="terminal-empty">暂无日志输出</div>
+        <div v-if="displayLogs.length === 0" class="terminal-empty">{{ $t('service.noLogs') }}</div>
       </div>
     </el-card>
   </div>
@@ -1160,14 +1267,50 @@
     white-space: nowrap;
   }
 
-  .install-openclaw-area {
+  /* 安装面板 */
+  .install-panel {
+    margin-top: 16px;
+    padding: 16px;
+    border: 1px solid var(--ct-border);
+    border-radius: var(--ct-radius-md, 8px);
+    background: var(--ct-bg-elevated, var(--ct-bg-card));
+  }
+
+  .install-steps {
+    margin-bottom: 16px;
+  }
+
+  .install-step-message {
     display: flex;
     align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--ct-text-regular);
+    margin-bottom: 12px;
+  }
+
+  .install-registry-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .install-registry-label {
+    font-size: 13px;
+    color: var(--ct-text-secondary);
+    white-space: nowrap;
+  }
+
+  .install-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
   }
 
   /* 安装日志 */
   .install-log {
-    margin-top: 12px;
     border-top: 1px solid var(--ct-border);
     padding-top: 12px;
   }

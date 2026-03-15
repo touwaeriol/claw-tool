@@ -5,22 +5,24 @@
    */
   import { ref, computed } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
+  import { useI18n } from 'vue-i18n'
 
   const route = useRoute()
   const router = useRouter()
+  const { t } = useI18n()
 
   /* 折叠状态 */
   const isCollapsed = ref(false)
 
-  /* 导航菜单项 */
+  /* 导航菜单项（label 为 i18n key） */
   const menuItems = [
-    { path: '/', icon: 'Monitor', label: '仪表盘' },
-    { path: '/providers', icon: 'Connection', label: '供应商' },
-    { path: '/channels', icon: 'ChatDotRound', label: '通道' },
-    { path: '/instances', icon: 'OfficeBuilding', label: '实例' },
-    { path: '/service', icon: 'Setting', label: '服务' },
-    { path: '/test', icon: 'ChatLineSquare', label: '测试' },
-    { path: '/settings', icon: 'Tools', label: '设置' },
+    { path: '/', icon: 'Monitor', label: 'menu.dashboard' },
+    { path: '/providers', icon: 'Connection', label: 'menu.providers' },
+    { path: '/channels', icon: 'ChatDotRound', label: 'menu.channels' },
+    { path: '/instances', icon: 'OfficeBuilding', label: 'menu.instances' },
+    { path: '/service', icon: 'Setting', label: 'menu.service' },
+    { path: '/test', icon: 'ChatLineSquare', label: 'menu.test' },
+    { path: '/settings', icon: 'Tools', label: 'menu.settings' },
   ]
 
   const activeMenu = computed(() => route.path)
@@ -59,7 +61,7 @@
     >
       <el-menu-item v-for="item in menuItems" :key="item.path" :index="item.path">
         <el-icon><component :is="'ElIcon' + item.icon" /></el-icon>
-        <template #title>{{ item.label }}</template>
+        <template #title>{{ $t(item.label) }}</template>
       </el-menu-item>
     </el-menu>
 

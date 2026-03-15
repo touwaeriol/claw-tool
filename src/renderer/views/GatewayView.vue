@@ -4,18 +4,21 @@
    * 管理端口、绑定模式、TLS、发现服务等
    */
   import { ref, computed, watch } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { useConfigStore } from '../stores/config.js'
   import { ElMessage } from 'element-plus'
 
+  const { t } = useI18n()
+
   const configStore = useConfigStore()
 
-  // 绑定模式选项
+  // 绑定模式选项（响应式，跟随语言变化）
   const bindModes = [
-    { value: 'auto', label: '自动 (auto)', desc: '自动选择最佳绑定方式' },
-    { value: 'lan', label: '局域网 (lan)', desc: '绑定到局域网 IP，局域网内设备可访问' },
-    { value: 'loopback', label: '仅本机 (loopback)', desc: '仅绑定 127.0.0.1，最安全' },
-    { value: 'custom', label: '自定义 (custom)', desc: '指定自定义绑定地址' },
-    { value: 'tailnet', label: 'Tailnet', desc: '通过 Tailscale 网络绑定' },
+    { value: 'auto', label: 'auto', desc: '' },
+    { value: 'lan', label: 'lan', desc: '' },
+    { value: 'loopback', label: 'loopback', desc: '' },
+    { value: 'custom', label: 'custom', desc: '' },
+    { value: 'tailnet', label: 'Tailnet', desc: '' },
   ]
 
   // 表单数据（从 store 初始化）
@@ -81,7 +84,7 @@
     }
 
     configStore.updateGateway(cfg)
-    ElMessage.success('Gateway 配置已更新')
+    ElMessage.success(t('gatewayConfig.configUpdated'))
   }
 
   /** 重置为默认值 */
@@ -103,13 +106,13 @@
 <template>
   <div class="gateway-view">
     <div class="page-toolbar">
-      <h3 class="page-heading">Gateway 配置</h3>
+      <h3 class="page-heading">{{ $t('gatewayConfig.title') }}</h3>
       <div class="toolbar-actions">
         <el-tag v-if="configStore.isDirty" type="warning" size="small" effect="plain">
-          有未保存的修改
+          {{ $t('common.unsavedChanges') }}
         </el-tag>
-        <el-button @click="handleReset">恢复默认</el-button>
-        <el-button type="primary" @click="handleSave">保存配置</el-button>
+        <el-button @click="handleReset">{{ $t('common.restoreDefault') }}</el-button>
+        <el-button type="primary" @click="handleSave">{{ $t('common.saveConfig') }}</el-button>
       </div>
     </div>
 
@@ -118,15 +121,15 @@
       <el-col :span="12">
         <el-card shadow="never" class="config-card">
           <template #header>
-            <span class="card-title">基础设置</span>
+            <span class="card-title">{{ $t('gatewayConfig.basicSettings') }}</span>
           </template>
           <el-form :model="form" label-position="top">
-            <el-form-item label="监听端口">
+            <el-form-item :label="$t('gatewayConfig.listenPort')">
               <el-input-number v-model="form.port" :min="1" :max="65535" style="width: 200px" />
-              <div class="form-help">默认 18789，修改后需重启 Gateway</div>
+              <div class="form-help">{{ $t('gatewayConfig.portHelp') }}</div>
             </el-form-item>
 
-            <el-form-item label="绑定模式">
+            <el-form-item :label="$t('gatewayConfig.bindMode')">
               <el-select v-model="form.bind" style="width: 100%">
                 <el-option
                   v-for="mode in bindModes"
@@ -136,24 +139,18 @@
                 >
                   <div>
                     <div>{{ mode.label }}</div>
-                    <div style="font-size: 12px; color: var(--el-text-color-secondary)">
-                      {{ mode.desc }}
-                    </div>
                   </div>
                 </el-option>
               </el-select>
             </el-form-item>
 
-            <el-form-item v-if="form.bind === 'custom'" label="自定义绑定地址">
-              <el-input v-model="form.customBind" placeholder="0.0.0.0 或具体 IP" />
+            <el-form-item v-if="form.bind === 'custom'" :label="$t('gatewayConfig.customBindAddr')">
+              <el-input v-model="form.customBind" placeholder="0.0.0.0" />
             </el-form-item>
 
-            <el-form-item label="CORS 允许的域名">
-              <el-input
-                v-model="form.corsOrigins"
-                placeholder="逗号分隔，例如 http://localhost:3000"
-              />
-              <div class="form-help">留空则不设置 CORS</div>
+            <el-form-item :label="$t('gatewayConfig.corsOrigins')">
+              <el-input v-model="form.corsOrigins" placeholder="http://localhost:3000" />
+              <div class="form-help">{{ $t('gatewayConfig.corsHelp') }}</div>
             </el-form-item>
           </el-form>
         </el-card>
@@ -163,36 +160,31 @@
       <el-col :span="12">
         <el-card shadow="never" class="config-card">
           <template #header>
-            <span class="card-title">安全设置</span>
+            <span class="card-title">{{ $t('gatewayConfig.securitySettings') }}</span>
           </template>
           <el-form :model="form" label-position="top">
-            <el-form-item label="启用 TLS">
+            <el-form-item :label="$t('gatewayConfig.enableTls')">
               <el-switch v-model="form.tls" />
             </el-form-item>
 
             <template v-if="form.tls">
-              <el-form-item label="TLS 证书路径">
+              <el-form-item :label="$t('gatewayConfig.tlsCertPath')">
                 <el-input v-model="form.tlsCert" placeholder="/path/to/cert.pem" />
               </el-form-item>
-              <el-form-item label="TLS 密钥路径">
+              <el-form-item :label="$t('gatewayConfig.tlsKeyPath')">
                 <el-input v-model="form.tlsKey" placeholder="/path/to/key.pem" />
               </el-form-item>
             </template>
 
             <el-divider />
 
-            <el-form-item label="启用认证">
+            <el-form-item :label="$t('gatewayConfig.enableAuth')">
               <el-switch v-model="form.auth" />
-              <div class="form-help">启用后，访问 Gateway 需提供 Bearer Token</div>
+              <div class="form-help">{{ $t('gatewayConfig.authHelp') }}</div>
             </el-form-item>
 
-            <el-form-item v-if="form.auth" label="认证 Token">
-              <el-input
-                v-model="form.authToken"
-                type="password"
-                show-password
-                placeholder="设置访问 Token"
-              />
+            <el-form-item v-if="form.auth" :label="$t('gatewayConfig.authToken')">
+              <el-input v-model="form.authToken" type="password" show-password />
             </el-form-item>
           </el-form>
         </el-card>

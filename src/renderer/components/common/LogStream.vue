@@ -4,6 +4,9 @@
    * 实时显示日志内容，支持自动滚动和级别过滤
    */
   import { ref, watch, nextTick, onMounted } from 'vue'
+  import { useI18n } from 'vue-i18n'
+
+  const { t } = useI18n()
 
   const props = defineProps<{
     lines: string[]
@@ -48,7 +51,7 @@
         >{{ line }}</span
       >
     </div>
-    <div v-if="lines.length === 0" class="log-empty">暂无日志</div>
+    <div v-if="lines.length === 0" class="log-empty">{{ t('service.noLogs') }}</div>
   </div>
 </template>
 

@@ -5,11 +5,13 @@
    * 数据来源：ClawHub 官方 API (clawhub.ai/api/v1)
    */
   import { ref, onMounted, watch } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { useSkillStore } from '../stores/skill.js'
   import { getBackend } from '../utils/nw-bridge'
 
   const skillStore = useSkillStore()
+  const { t } = useI18n()
 
   // markdown-it 渲染器
   const backend = getBackend()
@@ -22,13 +24,13 @@
   // 搜索防抖定时器
   let searchTimer = null
 
-  // 排序选项
+  // 排序选项（computed 以支持 i18n 响应式）
   const sortOptions = [
-    { label: '最近更新', value: '' },
-    { label: '最多下载', value: 'downloads' },
-    { label: '最多收藏', value: 'stars' },
-    { label: '安装量', value: 'installs' },
-    { label: '热门', value: 'trending' },
+    { label: t('skillStore.sortRecent'), value: '' },
+    { label: t('skillStore.sortDownloads'), value: 'downloads' },
+    { label: t('skillStore.sortStars'), value: 'stars' },
+    { label: t('skillStore.sortInstalls'), value: 'installs' },
+    { label: t('skillStore.sortTrending'), value: 'trending' },
   ]
 
   onMounted(() => {
@@ -88,9 +90,11 @@
    */
   async function handleUninstall(slug) {
     try {
-      await ElMessageBox.confirm(`确定要卸载技能「${slug}」吗？`, '确认卸载', {
-        type: 'warning',
-      })
+      await ElMessageBox.confirm(
+        t('skillStore.confirmUninstall', { slug }),
+        t('skillStore.confirmUninstallTitle'),
+        { type: 'warning' },
+      )
     } catch {
       return
     }
@@ -124,7 +128,7 @@
     <div class="skill-toolbar">
       <el-input
         v-model="skillStore.searchKeyword"
-        placeholder="搜索技能名称、描述..."
+        :placeholder="$t('skillStore.searchPlaceholder')"
         clearable
         class="skill-search"
       >
@@ -138,7 +142,7 @@
 
       <el-select
         v-model="skillStore.selectedTag"
-        placeholder="全部标签"
+        :placeholder="$t('skillStore.allTags')"
         clearable
         class="skill-tag-filter"
       >
@@ -147,7 +151,7 @@
 
       <el-select
         :model-value="skillStore.sortBy"
-        placeholder="排序"
+        :placeholder="$t('skillStore.sort')"
         class="skill-sort"
         @change="handleSortChange"
       >
@@ -161,7 +165,7 @@
 
       <el-button :loading="skillStore.loading" @click="handleRefresh">
         <el-icon><ElIconRefresh /></el-icon>
-        刷新
+        {{ $t('common.refresh') }}
       </el-button>
     </div>
 
@@ -181,13 +185,13 @@
       <el-icon class="is-loading" :size="32">
         <ElIconLoading />
       </el-icon>
-      <p>正在加载技能列表...</p>
+      <p>{{ $t('skillStore.loadingSkills') }}</p>
     </div>
 
     <!-- 空状态 -->
     <el-empty
       v-else-if="!skillStore.loading && skillStore.displaySkills.length === 0"
-      description="没有找到匹配的技能"
+      :description="$t('skillStore.noMatch')"
     />
 
     <!-- 技能卡片网格 -->
@@ -217,23 +221,23 @@
                 size="small"
                 effect="plain"
               >
-                已安装
+                {{ $t('status.installed') }}
               </el-tag>
             </div>
 
             <div class="skill-card-desc">
-              {{ skill.description || '暂无描述' }}
+              {{ skill.description || $t('skillStore.noDescription') }}
             </div>
 
             <!-- 统计数据 -->
             <div class="skill-card-stats">
-              <span v-if="skill.downloads" class="stat-item" title="下载量">
+              <span v-if="skill.downloads" class="stat-item" :title="$t('skillStore.download')">
                 <el-icon :size="12">
                   <ElIconDownload />
                 </el-icon>
                 {{ formatNumber(skill.downloads) }}
               </span>
-              <span v-if="skill.stars" class="stat-item" title="收藏">
+              <span v-if="skill.stars" class="stat-item" :title="$t('skillStore.star')">
                 <el-icon :size="12">
                   <ElIconStar />
                 </el-icon>
@@ -268,7 +272,11 @@
               :loading="skillStore.isInstalling(skill.slug || skill.name)"
               @click="handleInstall(skill.slug || skill.name)"
             >
-              {{ skillStore.isInstalling(skill.slug || skill.name) ? '安装中' : '安装' }}
+              {{
+                skillStore.isInstalling(skill.slug || skill.name)
+                  ? $t('status.installing')
+                  : $t('common.install')
+              }}
             </el-button>
             <el-button
               v-else
@@ -277,7 +285,7 @@
               plain
               @click="handleUninstall(skill.slug || skill.name)"
             >
-              卸载
+              {{ $t('common.uninstall') }}
             </el-button>
           </div>
         </el-card>
@@ -286,7 +294,7 @@
       <!-- 加载更多 -->
       <div v-if="skillStore.hasMore" class="skill-load-more">
         <el-button :loading="skillStore.loadingMore" @click="skillStore.loadMore()">
-          加载更多
+          {{ $t('skillStore.loadMore') }}
         </el-button>
       </div>
     </template>
@@ -294,7 +302,11 @@
     <!-- 技能详情抽屉 -->
     <el-drawer
       v-model="drawerVisible"
-      :title="skillStore.currentDetail?.displayName || skillStore.currentDetail?.slug || '技能详情'"
+      :title="
+        skillStore.currentDetail?.displayName ||
+        skillStore.currentDetail?.slug ||
+        $t('skillStore.skillDetail')
+      "
       size="50%"
       direction="rtl"
     >
@@ -302,7 +314,7 @@
         <el-icon class="is-loading" :size="24">
           <ElIconLoading />
         </el-icon>
-        <p>加载中...</p>
+        <p>{{ $t('common.loading') }}</p>
       </div>
 
       <div v-else-if="skillStore.currentDetail" class="skill-detail">
@@ -324,22 +336,30 @@
         <!-- 元信息 -->
         <div class="detail-meta">
           <el-descriptions :column="2" size="small" border>
-            <el-descriptions-item label="作者">
+            <el-descriptions-item :label="$t('skillStore.author')">
               {{
                 skillStore.currentDetail.owner?.displayName ||
                 skillStore.currentDetail.owner?.handle ||
                 '--'
               }}
             </el-descriptions-item>
-            <el-descriptions-item label="版本">
+            <el-descriptions-item :label="$t('skillStore.version')">
               {{ skillStore.currentDetail.version || '--' }}
             </el-descriptions-item>
-            <el-descriptions-item v-if="skillStore.currentDetail.license" label="许可证">
+            <el-descriptions-item
+              v-if="skillStore.currentDetail.license"
+              :label="$t('skillStore.license')"
+            >
               {{ skillStore.currentDetail.license }}
             </el-descriptions-item>
-            <el-descriptions-item v-if="skillStore.currentDetail.stats" label="统计">
-              下载 {{ formatNumber(skillStore.currentDetail.stats.downloads) }} / 收藏
-              {{ formatNumber(skillStore.currentDetail.stats.stars) }} / 安装
+            <el-descriptions-item
+              v-if="skillStore.currentDetail.stats"
+              :label="$t('skillStore.stats')"
+            >
+              {{ $t('skillStore.download') }}
+              {{ formatNumber(skillStore.currentDetail.stats.downloads) }} /
+              {{ $t('skillStore.star') }} {{ formatNumber(skillStore.currentDetail.stats.stars) }} /
+              {{ $t('skillStore.sortInstalls') }}
               {{ formatNumber(skillStore.currentDetail.stats.installsCurrent) }}
             </el-descriptions-item>
           </el-descriptions>
@@ -372,7 +392,7 @@
             @click="handleInstall(skillStore.currentDetail.slug)"
           >
             <el-icon><ElIconDownload /></el-icon>
-            安装技能
+            {{ $t('skillStore.installSkill') }}
           </el-button>
           <el-button
             v-else
@@ -381,7 +401,7 @@
             @click="handleUninstall(skillStore.currentDetail.slug)"
           >
             <el-icon><ElIconDelete /></el-icon>
-            卸载技能
+            {{ $t('skillStore.uninstallSkill') }}
           </el-button>
 
           <el-link
@@ -390,7 +410,7 @@
             type="primary"
             style="margin-left: 12px"
           >
-            在 ClawHub 查看
+            {{ $t('skillStore.viewOnClawHub') }}
           </el-link>
         </div>
 
@@ -398,17 +418,17 @@
 
         <!-- Changelog / README -->
         <div class="detail-readme">
-          <h3>更新日志</h3>
+          <h3>{{ $t('skillStore.changelog') }}</h3>
           <div
             v-if="skillStore.currentDetail.changelog"
             class="markdown-body"
             v-html="renderMarkdown(skillStore.currentDetail.changelog)"
           />
-          <el-empty v-else description="暂无更新日志" :image-size="60" />
+          <el-empty v-else :description="$t('skillStore.noChangelog')" :image-size="60" />
         </div>
       </div>
 
-      <el-empty v-else description="无法加载技能详情" />
+      <el-empty v-else :description="$t('skillStore.cannotLoadDetail')" />
     </el-drawer>
   </div>
 </template>

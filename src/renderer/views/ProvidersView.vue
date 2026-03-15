@@ -5,9 +5,12 @@
    * 通过 configStore 读写 ~/.openclaw/openclaw.json 中的 models.providers 配置
    */
   import { ref, computed, reactive, watchEffect, toRaw } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { useConfigStore } from '../stores/config.js'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { getBackend, openExternal } from '../utils/nw-bridge'
+
+  const { t } = useI18n()
 
   const configStore = useConfigStore()
   const backend = getBackend()
@@ -112,7 +115,7 @@
     {
       id: 'ollama',
       name: 'Ollama',
-      group: '本地模型',
+      group: 'providers.groupLocalModels',
       apiType: 'ollama',
       defaultBaseUrl: 'http://localhost:11434',
       authMethod: 'none',
@@ -121,7 +124,7 @@
     {
       id: 'vllm',
       name: 'vLLM',
-      group: '本地模型',
+      group: 'providers.groupLocalModels',
       apiType: 'openai-completions',
       defaultBaseUrl: 'http://localhost:8000/v1',
       authMethod: 'none',
@@ -131,7 +134,7 @@
     {
       id: 'xai',
       name: 'xAI (Grok)',
-      group: '其他',
+      group: 'providers.groupOther',
       apiType: 'openai-completions',
       defaultBaseUrl: 'https://api.x.ai/v1',
       authMethod: 'api-key',
@@ -141,7 +144,7 @@
     {
       id: 'mistral',
       name: 'Mistral',
-      group: '其他',
+      group: 'providers.groupOther',
       apiType: 'openai-completions',
       defaultBaseUrl: 'https://api.mistral.ai/v1',
       authMethod: 'api-key',
@@ -151,7 +154,7 @@
     {
       id: 'openrouter',
       name: 'OpenRouter',
-      group: '其他',
+      group: 'providers.groupOther',
       apiType: 'openai-completions',
       defaultBaseUrl: 'https://openrouter.ai/api/v1',
       authMethod: 'api-key',
@@ -161,7 +164,7 @@
     {
       id: 'together',
       name: 'Together AI',
-      group: '其他',
+      group: 'providers.groupOther',
       apiType: 'openai-completions',
       defaultBaseUrl: 'https://api.together.xyz/v1',
       authMethod: 'api-key',
@@ -171,7 +174,7 @@
     {
       id: 'huggingface',
       name: 'Hugging Face',
-      group: '其他',
+      group: 'providers.groupOther',
       apiType: 'openai-completions',
       defaultBaseUrl: 'https://api-inference.huggingface.co/v1',
       authMethod: 'api-key',
@@ -181,7 +184,7 @@
     {
       id: 'venice',
       name: 'Venice AI',
-      group: '其他',
+      group: 'providers.groupOther',
       apiType: 'openai-completions',
       defaultBaseUrl: 'https://api.venice.ai/api/v1',
       authMethod: 'api-key',
@@ -190,7 +193,7 @@
     {
       id: 'litellm',
       name: 'LiteLLM',
-      group: '其他',
+      group: 'providers.groupOther',
       apiType: 'openai-completions',
       defaultBaseUrl: 'http://localhost:4000',
       authMethod: 'api-key',
@@ -199,7 +202,7 @@
     {
       id: 'cloudflare',
       name: 'Cloudflare AI Gateway',
-      group: '其他',
+      group: 'providers.groupOther',
       apiType: 'openai-completions',
       defaultBaseUrl: '',
       authMethod: 'api-key',
@@ -208,7 +211,7 @@
     {
       id: 'vercel',
       name: 'Vercel AI Gateway',
-      group: '其他',
+      group: 'providers.groupOther',
       apiType: 'openai-completions',
       defaultBaseUrl: '',
       authMethod: 'api-key',
@@ -219,7 +222,7 @@
     {
       id: 'minimax',
       name: 'MiniMax',
-      group: '国内厂商',
+      group: 'providers.groupChinaVendors',
       apiType: 'openai-completions',
       defaultBaseUrl: 'https://api.minimax.chat/v1',
       authMethod: 'api-key',
@@ -228,7 +231,7 @@
     {
       id: 'moonshot',
       name: 'Moonshot (Kimi)',
-      group: '国内厂商',
+      group: 'providers.groupChinaVendors',
       apiType: 'openai-completions',
       defaultBaseUrl: 'https://api.moonshot.cn/v1',
       authMethod: 'api-key',
@@ -236,8 +239,8 @@
     },
     {
       id: 'volcengine',
-      name: '火山引擎',
-      group: '国内厂商',
+      name: 'providers.nameVolcengine',
+      group: 'providers.groupChinaVendors',
       apiType: 'openai-completions',
       defaultBaseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
       authMethod: 'api-key',
@@ -247,7 +250,7 @@
     {
       id: 'byteplus',
       name: 'BytePlus',
-      group: '国内厂商',
+      group: 'providers.groupChinaVendors',
       apiType: 'openai-completions',
       defaultBaseUrl: 'https://ark.ap-southeast.byteplusapi.com/api/v3',
       authMethod: 'api-key',
@@ -256,8 +259,8 @@
     },
     {
       id: 'qianfan',
-      name: '千帆 (百度)',
-      group: '国内厂商',
+      name: 'providers.nameQianfan',
+      group: 'providers.groupChinaVendors',
       apiType: 'openai-completions',
       defaultBaseUrl: 'https://qianfan.baidubce.com/v2',
       authMethod: 'api-key',
@@ -266,8 +269,8 @@
     },
     {
       id: 'qwen',
-      name: '通义千问 (Qwen)',
-      group: '国内厂商',
+      name: 'providers.nameQwen',
+      group: 'providers.groupChinaVendors',
       apiType: 'openai-completions',
       defaultBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
       authMethod: 'api-key',
@@ -276,7 +279,7 @@
     {
       id: 'zai',
       name: 'Z.AI',
-      group: '国内厂商',
+      group: 'providers.groupChinaVendors',
       apiType: 'openai-completions',
       defaultBaseUrl: 'https://api.zai.chat/v1',
       authMethod: 'api-key',
@@ -286,7 +289,7 @@
     {
       id: 'xiaomi',
       name: 'Xiaomi',
-      group: '国内厂商',
+      group: 'providers.groupChinaVendors',
       apiType: 'openai-completions',
       defaultBaseUrl: '',
       authMethod: 'api-key',
@@ -297,7 +300,7 @@
     {
       id: 'kilocode',
       name: 'Kilo Gateway',
-      group: '其他',
+      group: 'providers.groupOther',
       apiType: 'openai-completions',
       defaultBaseUrl: '',
       authMethod: 'api-key',
@@ -307,7 +310,7 @@
     {
       id: 'synthetic',
       name: 'Synthetic',
-      group: '其他',
+      group: 'providers.groupOther',
       apiType: 'openai-completions',
       defaultBaseUrl: '',
       authMethod: 'api-key',
@@ -316,7 +319,7 @@
     {
       id: 'opencode',
       name: 'OpenCode Zen',
-      group: '其他',
+      group: 'providers.groupOther',
       apiType: 'openai-completions',
       defaultBaseUrl: '',
       authMethod: 'api-key',
@@ -326,7 +329,7 @@
     {
       id: 'chutes',
       name: 'Chutes',
-      group: '其他',
+      group: 'providers.groupOther',
       apiType: 'openai-completions',
       defaultBaseUrl: '',
       authMethod: 'oauth-pkce',
@@ -335,8 +338,8 @@
     // 自定义
     {
       id: 'custom',
-      name: '自定义',
-      group: '自定义',
+      name: 'providers.nameCustom',
+      group: 'providers.groupCustom',
       apiType: 'openai-completions',
       defaultBaseUrl: '',
       authMethod: 'api-key',
@@ -350,9 +353,9 @@
     { name: 'Google', providers: ['google-gemini', 'google-gemini-cli'] },
     { name: 'GitHub', providers: ['github-copilot'] },
     { name: 'AWS', providers: ['aws-bedrock'] },
-    { name: '本地模型', providers: ['ollama', 'vllm'] },
+    { name: 'providers.groupLocalModels', providers: ['ollama', 'vllm'] },
     {
-      name: '国内厂商',
+      name: 'providers.groupChinaVendors',
       providers: [
         'minimax',
         'moonshot',
@@ -365,7 +368,7 @@
       ],
     },
     {
-      name: '其他',
+      name: 'providers.groupOther',
       providers: [
         'xai',
         'mistral',
@@ -382,7 +385,7 @@
         'chutes',
       ],
     },
-    { name: '自定义', providers: ['custom'] },
+    { name: 'providers.groupCustom', providers: ['custom'] },
   ]
 
   // ========== 状态 ==========
@@ -461,10 +464,10 @@
   function authMethodLabel(method) {
     const map = {
       'api-key': 'API Key',
-      'oauth-device': 'OAuth 设备授权',
+      'oauth-device': t('providers.authOAuthDevice'),
       'oauth-pkce': 'OAuth PKCE',
       'aws-sdk': 'AWS SDK',
-      none: '无需认证',
+      none: t('providers.authNone'),
     }
     return map[method] || method || '--'
   }
@@ -496,10 +499,10 @@
     navigator.clipboard
       .writeText(key)
       .then(() => {
-        ElMessage.success('API Key 已复制')
+        ElMessage.success(t('providers.apiKeyCopied'))
       })
       .catch(() => {
-        ElMessage.error('复制失败')
+        ElMessage.error(t('common.copyFailed'))
       })
   }
 
@@ -597,7 +600,7 @@
   function handleSave() {
     const providerName = form.value.name?.trim()
     if (!providerName) {
-      ElMessage.warning('请输入供应商名称')
+      ElMessage.warning(t('providers.nameRequired'))
       return
     }
 
@@ -652,15 +655,21 @@
     providersObj[providerName] = provider
     configStore.updateProviders(providersObj)
     showAddDialog.value = false
-    ElMessage.success(editingKey.value ? '供应商已更新' : '供应商已添加')
+    ElMessage.success(
+      editingKey.value ? t('providers.providerUpdated') : t('providers.providerAdded'),
+    )
   }
 
   /** 删除供应商 */
   async function handleDelete(entry) {
     try {
-      await ElMessageBox.confirm(`确定要删除供应商「${entry.key}」吗？`, '确认删除', {
-        type: 'warning',
-      })
+      await ElMessageBox.confirm(
+        t('providers.confirmDelete', { name: entry.key }),
+        t('common.confirmDelete'),
+        {
+          type: 'warning',
+        },
+      )
       const deletedModels = getProviderModels(entry)
       const providersObj = { ...(configStore.providers || {}) }
       delete providersObj[entry.key]
@@ -670,9 +679,9 @@
       if (currentDefault && deletedModels.includes(currentDefault)) {
         configStore.setDefaultModel('')
         defaultModel.value = ''
-        ElMessage.info('默认模型已自动清除（所属供应商已删除）')
+        ElMessage.info(t('providers.defaultModelCleared'))
       }
-      ElMessage.success('供应商已删除')
+      ElMessage.success(t('providers.providerDeleted'))
     } catch {
       // 用户取消
     }
@@ -696,13 +705,13 @@
   async function testProvider() {
     const baseUrl = (form.value.baseUrl || '').replace(/\/$/, '')
     if (!baseUrl) {
-      ElMessage.warning('请输入 API 地址')
+      ElMessage.warning(t('providers.baseUrlRequired'))
       return
     }
 
     const testModel = form.value.modelsList?.[0]?.id?.trim()
     if (!testModel) {
-      ElMessage.warning('请至少添加一个模型再测试')
+      ElMessage.warning(t('providers.addModelFirst'))
       return
     }
 
@@ -803,13 +812,13 @@
   async function quickTestProvider(entry) {
     const baseUrl = (entry.baseUrl || '').replace(/\/$/, '')
     if (!baseUrl) {
-      ElMessage.warning('该供应商未配置 API 地址')
+      ElMessage.warning(t('providers.noBaseUrl'))
       return
     }
     const models = getProviderModels(entry)
     const testModel = models[0]?.id?.trim()
     if (!testModel) {
-      ElMessage.warning('该供应商未配置模型')
+      ElMessage.warning(t('providers.noModelsConfigured'))
       return
     }
 
@@ -901,14 +910,14 @@
 
   /** 复制测试错误信息 */
   function copyTestError() {
-    const text = `API 地址: ${testResult.baseUrl}\n协议类型: ${testResult.apiType}\n模型: ${testResult.model}\n\n错误: ${testResult.error}\n\n原始响应:\n${testResult.raw}`
+    const text = `API: ${testResult.baseUrl}\n${t('providers.apiType')}: ${testResult.apiType}\n${t('providers.model')}: ${testResult.model}\n\n${t('common.error')}: ${testResult.error}\n\n${t('providers.rawResponse')}:\n${testResult.raw}`
     navigator.clipboard
       .writeText(text)
       .then(() => {
-        ElMessage.success('错误信息已复制')
+        ElMessage.success(t('providers.errorCopied'))
       })
       .catch(() => {
-        ElMessage.error('复制失败')
+        ElMessage.error(t('common.copyFailed'))
       })
   }
 
@@ -926,7 +935,7 @@
   /** 开始 Device Flow 授权 (GitHub Copilot 等) */
   async function startDeviceAuth() {
     if (!providerAuth) {
-      ElMessage.warning('OAuth 模块未加载')
+      ElMessage.warning(t('providers.oauthModuleNotLoaded'))
       return
     }
 
@@ -939,7 +948,7 @@
       if (presetId === 'github-copilot') {
         result = await providerAuth.startGitHubCopilotAuth()
       } else {
-        ElMessage.warning('该供应商暂不支持设备授权')
+        ElMessage.warning(t('providers.deviceAuthNotSupported'))
         oauthState.waiting = false
         return
       }
@@ -950,17 +959,17 @@
       oauthState.token = token
       oauthState.completed = true
       oauthState.waiting = false
-      ElMessage.success('OAuth 授权成功')
+      ElMessage.success(t('providers.oauthSuccess'))
     } catch (err) {
       oauthState.waiting = false
-      ElMessage.error(`OAuth 授权失败: ${err.message}`)
+      ElMessage.error(t('providers.oauthFailed', { error: err.message }))
     }
   }
 
   /** 开始 PKCE 授权 (OpenAI Codex, Gemini CLI 等) */
   async function startPKCEAuth() {
     if (!providerAuth) {
-      ElMessage.warning('OAuth 模块未加载')
+      ElMessage.warning(t('providers.oauthModuleNotLoaded'))
       return
     }
 
@@ -975,7 +984,7 @@
       } else if (presetId === 'google-gemini-cli') {
         result = await providerAuth.startGeminiCliAuth()
       } else {
-        ElMessage.warning('该供应商暂不支持 PKCE 授权')
+        ElMessage.warning(t('providers.pkceAuthNotSupported'))
         oauthState.waiting = false
         return
       }
@@ -987,10 +996,10 @@
       oauthState.token = token
       oauthState.completed = true
       oauthState.waiting = false
-      ElMessage.success('OAuth 授权成功')
+      ElMessage.success(t('providers.oauthSuccess'))
     } catch (err) {
       oauthState.waiting = false
-      ElMessage.error(`OAuth 授权失败: ${err.message}`)
+      ElMessage.error(t('providers.oauthFailed', { error: err.message }))
     }
   }
 
@@ -1004,25 +1013,27 @@
   <div class="providers-view">
     <!-- 工具栏 -->
     <div class="page-toolbar">
-      <h3 class="page-heading">供应商配置</h3>
+      <h3 class="page-heading">{{ $t('providers.title') }}</h3>
       <div class="toolbar-actions">
         <el-tag v-if="configStore.isDirty" type="warning" size="small" effect="plain">
-          有未保存的修改
+          {{ $t('common.unsavedChanges') }}
         </el-tag>
-        <el-tag type="info" effect="plain">{{ providerEntries.length }} 个供应商</el-tag>
+        <el-tag type="info" effect="plain">{{
+          $t('providers.providerCount', { count: providerEntries.length })
+        }}</el-tag>
         <el-button type="primary" @click="handleAdd">
           <el-icon><ElIconPlus /></el-icon>
-          添加供应商
+          {{ $t('providers.addProvider') }}
         </el-button>
       </div>
     </div>
 
     <!-- 默认模型选择 -->
     <div v-if="providerEntries.length > 0" class="default-model-bar">
-      <span class="default-model-label">默认模型</span>
+      <span class="default-model-label">{{ $t('providers.defaultModel') }}</span>
       <el-select
         v-model="defaultModel"
-        placeholder="选择默认模型"
+        :placeholder="$t('providers.selectDefaultModel')"
         size="small"
         clearable
         style="width: 240px"
@@ -1135,7 +1146,7 @@
                   size="small"
                   class="apikey-btn"
                   @click.stop="toggleRevealKey(entry.key)"
-                  :title="revealedKeys.has(entry.key) ? '隐藏' : '查看'"
+                  :title="revealedKeys.has(entry.key) ? $t('common.hide') : $t('common.view')"
                 >
                   <el-icon :size="12"
                     ><ElIconView v-if="!revealedKeys.has(entry.key)" /><ElIconHide v-else
@@ -1146,7 +1157,7 @@
                   size="small"
                   class="apikey-btn"
                   @click.stop="copyApiKey(entry.apiKey)"
-                  title="复制"
+                  :title="$t('common.copy')"
                 >
                   <el-icon :size="12"><ElIconCopyDocument /></el-icon>
                 </el-button>
@@ -1160,14 +1171,26 @@
               type="success"
               @click="quickTestProvider(entry)"
               :loading="testingProvider === entry.key"
-              title="测试连通性"
+              :title="$t('common.test')"
             >
               <el-icon v-if="testingProvider !== entry.key"><ElIconConnection /></el-icon>
             </el-button>
-            <el-button text size="small" type="primary" @click="handleEdit(entry)" title="编辑">
+            <el-button
+              text
+              size="small"
+              type="primary"
+              @click="handleEdit(entry)"
+              :title="$t('common.edit')"
+            >
               <el-icon><ElIconEdit /></el-icon>
             </el-button>
-            <el-button text size="small" type="danger" @click="handleDelete(entry)" title="删除">
+            <el-button
+              text
+              size="small"
+              type="danger"
+              @click="handleDelete(entry)"
+              :title="$t('common.delete')"
+            >
               <el-icon><ElIconDelete /></el-icon>
             </el-button>
           </div>
@@ -1183,7 +1206,9 @@
         <div class="provider-models-bar" @click="toggleModels(entry.key)">
           <span class="models-bar-left">
             <el-icon :size="14"><ElIconCoin /></el-icon>
-            <span>{{ getProviderModels(entry).length }} 个模型</span>
+            <span>{{
+              $t('providers.modelCount', { count: getProviderModels(entry).length })
+            }}</span>
           </span>
           <el-icon
             :size="14"
@@ -1196,7 +1221,9 @@
 
         <!-- 模型列表（展开） -->
         <div v-show="expandedProviders.has(entry.key)" class="provider-models-list">
-          <div v-if="getProviderModels(entry).length === 0" class="models-empty">暂无模型</div>
+          <div v-if="getProviderModels(entry).length === 0" class="models-empty">
+            {{ $t('providers.noModels') }}
+          </div>
           <div v-for="model in getProviderModels(entry)" :key="model.id" class="models-list-row">
             <span class="models-list-id">{{ model.id }}</span>
             <span v-if="model.name && model.name !== model.id" class="models-list-name">{{
@@ -1208,34 +1235,41 @@
     </div>
 
     <!-- 空状态 -->
-    <el-empty
-      v-if="providerEntries.length === 0"
-      description="暂未配置任何供应商，点击「添加供应商」开始"
-    />
+    <el-empty v-if="providerEntries.length === 0" :description="$t('providers.emptyDescription')" />
 
     <!-- 添加/编辑对话框 -->
     <el-dialog
       v-model="showAddDialog"
-      :title="editingKey ? '编辑供应商' : '添加供应商'"
+      :title="editingKey ? $t('providers.editProvider') : $t('providers.addProvider')"
       width="640px"
       destroy-on-close
     >
       <el-form label-position="top">
         <!-- Provider 预设选择 -->
-        <el-form-item label="供应商预设">
+        <el-form-item :label="$t('providers.providerPreset')">
           <el-select
             v-model="form.presetId"
             filterable
             clearable
-            placeholder="选择预设或自定义"
+            :placeholder="$t('providers.selectPreset')"
             @change="onPresetChange"
             style="width: 100%"
           >
-            <el-option-group v-for="group in PROVIDER_GROUPS" :key="group.name" :label="group.name">
+            <el-option-group
+              v-for="group in PROVIDER_GROUPS"
+              :key="group.name"
+              :label="$t(group.name)"
+            >
               <el-option
                 v-for="pid in group.providers"
                 :key="pid"
-                :label="getPreset(pid)?.name || pid"
+                :label="
+                  getPreset(pid)?.name
+                    ? getPreset(pid).name.startsWith('providers.')
+                      ? $t(getPreset(pid).name)
+                      : getPreset(pid).name
+                    : pid
+                "
                 :value="pid"
               />
             </el-option-group>
@@ -1243,13 +1277,13 @@
         </el-form-item>
 
         <!-- 供应商名称 -->
-        <el-form-item label="供应商名称" required>
-          <el-input v-model="form.name" placeholder="如 OpenAI、我的供应商、my-anthropic" />
-          <div class="form-tip">作为配置文件中的唯一键名，支持中英文</div>
+        <el-form-item :label="$t('providers.providerName')" required>
+          <el-input v-model="form.name" :placeholder="$t('providers.providerNamePlaceholder')" />
+          <div class="form-tip">{{ $t('providers.providerNameTip') }}</div>
         </el-form-item>
 
         <!-- API 类型 -->
-        <el-form-item label="API 类型">
+        <el-form-item :label="$t('providers.apiType')">
           <el-select v-model="form.apiType" style="width: 100%">
             <el-option
               v-for="api in MODEL_APIS"
@@ -1261,7 +1295,7 @@
         </el-form-item>
 
         <!-- API 地址 -->
-        <el-form-item label="API 地址 (baseUrl)">
+        <el-form-item :label="$t('providers.apiAddress')">
           <el-input v-model="form.baseUrl" placeholder="https://api.openai.com/v1" />
         </el-form-item>
 
@@ -1269,48 +1303,56 @@
         <el-form-item v-if="currentAuthMethod === 'api-key'" label="API Key">
           <el-input v-model="form.apiKey" type="password" show-password placeholder="sk-..." />
           <div v-if="getPreset(form.presetId)?.envVar" class="form-tip">
-            也可通过环境变量 {{ getPreset(form.presetId).envVar }} 配置
+            {{ $t('providers.envVarTip', { var: getPreset(form.presetId).envVar }) }}
           </div>
         </el-form-item>
 
         <!-- OAuth Device Flow (GitHub Copilot) -->
         <div v-if="currentAuthMethod === 'oauth-device'" class="oauth-section">
-          <el-form-item label="OAuth 设备授权">
+          <el-form-item :label="$t('providers.oauthDeviceAuth')">
             <div v-if="!oauthState.inProgress">
-              <el-button type="primary" @click="startDeviceAuth">开始授权</el-button>
+              <el-button type="primary" @click="startDeviceAuth">{{
+                $t('providers.startAuth')
+              }}</el-button>
             </div>
             <div v-else class="device-flow-ui">
               <template v-if="oauthState.userCode">
-                <p class="oauth-hint">请访问以下链接完成授权：</p>
+                <p class="oauth-hint">{{ $t('providers.visitLinkToAuth') }}</p>
                 <el-link type="primary" :href="oauthState.verificationUri" target="_blank">
                   {{ oauthState.verificationUri }}
                 </el-link>
                 <div class="device-code">{{ oauthState.userCode }}</div>
-                <el-button size="small" @click="openBrowser(oauthState.verificationUri)"
-                  >打开浏览器</el-button
-                >
+                <el-button size="small" @click="openBrowser(oauthState.verificationUri)">{{
+                  $t('providers.openBrowser')
+                }}</el-button>
               </template>
               <div v-if="oauthState.waiting" class="oauth-waiting">
                 <el-icon class="is-loading"><ElIconLoading /></el-icon>
-                <span>等待授权完成...</span>
+                <span>{{ $t('providers.waitingForAuth') }}</span>
               </div>
-              <el-tag v-if="oauthState.completed" type="success" effect="plain">授权成功</el-tag>
+              <el-tag v-if="oauthState.completed" type="success" effect="plain">{{
+                $t('providers.authSuccess')
+              }}</el-tag>
             </div>
           </el-form-item>
         </div>
 
         <!-- OAuth PKCE (OpenAI Codex, Gemini CLI) -->
         <div v-if="currentAuthMethod === 'oauth-pkce'" class="oauth-section">
-          <el-form-item label="OAuth 浏览器授权">
+          <el-form-item :label="$t('providers.oauthBrowserAuth')">
             <div v-if="!oauthState.inProgress">
-              <el-button type="primary" @click="startPKCEAuth">浏览器授权</el-button>
+              <el-button type="primary" @click="startPKCEAuth">{{
+                $t('providers.browserAuth')
+              }}</el-button>
             </div>
             <div v-else>
               <div v-if="oauthState.waiting" class="oauth-waiting">
                 <el-icon class="is-loading"><ElIconLoading /></el-icon>
-                <span>等待浏览器授权回调...</span>
+                <span>{{ $t('providers.waitingForBrowserAuth') }}</span>
               </div>
-              <el-tag v-if="oauthState.completed" type="success" effect="plain">授权成功</el-tag>
+              <el-tag v-if="oauthState.completed" type="success" effect="plain">{{
+                $t('providers.authSuccess')
+              }}</el-tag>
             </div>
           </el-form-item>
         </div>
@@ -1325,40 +1367,40 @@
           </el-form-item>
           <el-form-item label="Region">
             <el-select v-model="form.awsRegion" filterable style="width: 100%">
-              <el-option label="us-east-1 (弗吉尼亚)" value="us-east-1" />
-              <el-option label="us-west-2 (俄勒冈)" value="us-west-2" />
-              <el-option label="eu-west-1 (爱尔兰)" value="eu-west-1" />
-              <el-option label="eu-central-1 (法兰克福)" value="eu-central-1" />
-              <el-option label="ap-northeast-1 (东京)" value="ap-northeast-1" />
-              <el-option label="ap-southeast-1 (新加坡)" value="ap-southeast-1" />
+              <el-option :label="$t('providers.regionVirginia')" value="us-east-1" />
+              <el-option :label="$t('providers.regionOregon')" value="us-west-2" />
+              <el-option :label="$t('providers.regionIreland')" value="eu-west-1" />
+              <el-option :label="$t('providers.regionFrankfurt')" value="eu-central-1" />
+              <el-option :label="$t('providers.regionTokyo')" value="ap-northeast-1" />
+              <el-option :label="$t('providers.regionSingapore')" value="ap-southeast-1" />
             </el-select>
           </el-form-item>
         </template>
 
         <!-- 无需认证提示 -->
-        <el-form-item v-if="currentAuthMethod === 'none'" label="认证">
-          <el-tag type="info" effect="plain">无需认证（本地服务）</el-tag>
+        <el-form-item v-if="currentAuthMethod === 'none'" :label="$t('providers.authLabel')">
+          <el-tag type="info" effect="plain">{{ $t('providers.noAuthNeeded') }}</el-tag>
         </el-form-item>
 
         <!-- 模型列表 -->
-        <el-form-item label="模型列表">
+        <el-form-item :label="$t('providers.modelList')">
           <div class="models-table">
             <div class="models-header">
-              <span class="models-col-id">模型 ID</span>
-              <span class="models-col-name">显示名称</span>
+              <span class="models-col-id">{{ $t('providers.modelId') }}</span>
+              <span class="models-col-name">{{ $t('providers.modelDisplayName') }}</span>
               <span class="models-col-action"></span>
             </div>
             <div v-for="(model, idx) in form.modelsList" :key="idx" class="models-row">
               <el-input
                 v-model="model.id"
                 size="small"
-                placeholder="模型 ID，如 gpt-4o"
+                :placeholder="$t('providers.modelIdPlaceholder')"
                 class="models-col-id"
               />
               <el-input
                 v-model="model.name"
                 size="small"
-                placeholder="显示名称（可选）"
+                :placeholder="$t('providers.modelNamePlaceholder')"
                 class="models-col-name"
               />
               <el-button
@@ -1367,7 +1409,7 @@
                 type="danger"
                 @click="form.modelsList.splice(idx, 1)"
                 class="models-col-action"
-                >删除</el-button
+                >{{ $t('common.delete') }}</el-button
               >
             </div>
             <el-button
@@ -1375,23 +1417,25 @@
               @click="form.modelsList.push({ id: '', name: '' })"
               style="margin-top: 6px"
             >
-              + 添加模型
+              + {{ $t('providers.addModel') }}
             </el-button>
           </div>
         </el-form-item>
       </el-form>
 
       <template #footer>
-        <el-button @click="showAddDialog = false">取消</el-button>
-        <el-button @click="testProvider" :loading="testing">测试连通性</el-button>
-        <el-button type="primary" @click="handleSave">保存</el-button>
+        <el-button @click="showAddDialog = false">{{ $t('common.cancel') }}</el-button>
+        <el-button @click="testProvider" :loading="testing">{{
+          $t('providers.testConnectivity')
+        }}</el-button>
+        <el-button type="primary" @click="handleSave">{{ $t('common.save') }}</el-button>
       </template>
     </el-dialog>
 
     <!-- 连通性测试结果对话框 -->
     <el-dialog
       v-model="testResultVisible"
-      :title="testResult.success ? '连通性测试成功' : '连通性测试失败'"
+      :title="testResult.success ? $t('providers.testSuccess') : $t('providers.testFailed')"
       width="600px"
       append-to-body
     >
@@ -1405,32 +1449,35 @@
             <ElIconSuccessFilled v-if="testResult.success" />
             <ElIconCircleCloseFilled v-else />
           </el-icon>
-          <span>{{ testResult.success ? '连通成功' : '连通失败' }}</span>
+          <span>{{
+            testResult.success ? $t('providers.connSuccess') : $t('providers.connFailed')
+          }}</span>
         </div>
         <span class="test-result-latency">{{ testResult.latency }}ms</span>
       </div>
 
       <!-- 请求信息 -->
       <div class="test-result-section">
-        <div class="test-result-label">请求信息</div>
+        <div class="test-result-label">{{ $t('providers.requestInfo') }}</div>
         <div class="test-result-meta">
           <div class="meta-row">
-            <span class="meta-key">API 地址</span
+            <span class="meta-key">{{ $t('providers.apiAddress') }}</span
             ><span class="meta-val">{{ testResult.baseUrl }}</span>
           </div>
           <div class="meta-row">
-            <span class="meta-key">协议类型</span
+            <span class="meta-key">{{ $t('providers.apiType') }}</span
             ><span class="meta-val">{{ testResult.apiType }}</span>
           </div>
           <div class="meta-row">
-            <span class="meta-key">模型</span><span class="meta-val">{{ testResult.model }}</span>
+            <span class="meta-key">{{ $t('providers.model') }}</span
+            ><span class="meta-val">{{ testResult.model }}</span>
           </div>
         </div>
       </div>
 
       <!-- 对话记录 -->
       <div class="test-result-section">
-        <div class="test-result-label">对话</div>
+        <div class="test-result-label">{{ $t('providers.conversation') }}</div>
         <div class="test-chat">
           <div class="chat-bubble chat-user">
             <span class="chat-role">User</span>
@@ -1448,9 +1495,9 @@
                 size="small"
                 class="chat-copy-btn"
                 @click="copyTestError"
-                title="复制错误信息"
+                :title="$t('providers.copyError')"
               >
-                <el-icon :size="12"><ElIconCopyDocument /></el-icon> 复制
+                <el-icon :size="12"><ElIconCopyDocument /></el-icon> {{ $t('common.copy') }}
               </el-button>
             </div>
             <span class="chat-text">{{ testResult.error }}</span>
@@ -1460,7 +1507,7 @@
 
       <!-- 原始响应（折叠） -->
       <el-collapse class="test-result-raw-collapse">
-        <el-collapse-item title="原始响应">
+        <el-collapse-item :title="$t('providers.rawResponse')">
           <pre class="test-result-raw">{{ testResult.raw }}</pre>
         </el-collapse-item>
       </el-collapse>

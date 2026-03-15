@@ -5,10 +5,13 @@
    * 通过 configStore 读写 ~/.openclaw/openclaw.json 中的 channels 配置
    */
   import { ref, computed, reactive, onMounted, nextTick } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { useConfigStore } from '../stores/config.js'
   import { useInstanceStore } from '../stores/instance.js'
   import { ElMessage } from 'element-plus'
   import { getBackend } from '../utils/nw-bridge'
+
+  const { t } = useI18n()
 
   const configStore = useConfigStore()
   const instanceStore = useInstanceStore()
@@ -34,9 +37,9 @@
   function formatTime(ts) {
     if (!ts) return ''
     const diff = Date.now() - ts
-    if (diff < 60000) return '刚刚'
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
+    if (diff < 60000) return t('channels.timeJustNow')
+    if (diff < 3600000) return t('channels.timeMinutesAgo', { n: Math.floor(diff / 60000) })
+    if (diff < 86400000) return t('channels.timeHoursAgo', { n: Math.floor(diff / 3600000) })
     return new Date(ts).toLocaleDateString()
   }
 
@@ -47,60 +50,66 @@
       id: 'telegram',
       name: 'Telegram',
       icon: 'https://cdn.simpleicons.org/telegram/26A5E4',
-      description: 'Telegram Bot 通道',
+      descKey: 'channels.descTelegram',
     },
     {
       id: 'discord',
       name: 'Discord',
       icon: 'https://cdn.simpleicons.org/discord/5865F2',
-      description: 'Discord Bot 通道',
+      descKey: 'channels.descDiscord',
     },
-    { id: 'slack', name: 'Slack', icon: '/icons/slack.svg', description: 'Slack App 通道' },
+    { id: 'slack', name: 'Slack', icon: '/icons/slack.svg', descKey: 'channels.descSlack' },
     {
       id: 'whatsapp',
       name: 'WhatsApp',
       icon: 'https://cdn.simpleicons.org/whatsapp/25D366',
-      description: 'WhatsApp Business 通道',
+      descKey: 'channels.descWhatsApp',
     },
     {
       id: 'signal',
       name: 'Signal',
       icon: 'https://cdn.simpleicons.org/signal/3A76F0',
-      description: 'Signal 通道',
+      descKey: 'channels.descSignal',
     },
     {
       id: 'line',
       name: 'LINE',
       icon: 'https://cdn.simpleicons.org/line/00C300',
-      description: 'LINE Bot 通道',
+      descKey: 'channels.descLine',
     },
     {
       id: 'matrix',
       name: 'Matrix',
       icon: 'https://cdn.simpleicons.org/matrix/000000',
-      description: 'Matrix 协议通道',
+      descKey: 'channels.descMatrix',
     },
-    { id: 'irc', name: 'IRC', icon: '/icons/irc.svg', description: 'IRC 通道' },
+    { id: 'irc', name: 'IRC', icon: '/icons/irc.svg', descKey: 'channels.descIRC' },
     {
       id: 'googlechat',
       name: 'Google Chat',
       icon: 'https://cdn.simpleicons.org/googlechat/00AC47',
-      description: 'Google Chat 通道',
+      descKey: 'channels.descGoogleChat',
     },
     {
       id: 'mattermost',
       name: 'Mattermost',
       icon: 'https://cdn.simpleicons.org/mattermost/0058CC',
-      description: 'Mattermost 通道',
+      descKey: 'channels.descMattermost',
     },
-    { id: 'feishu', name: '飞书', icon: '/icons/feishu.svg', description: '飞书机器人通道' },
+    {
+      id: 'feishu',
+      name: '',
+      nameKey: 'channels.nameFeishu',
+      icon: '/icons/feishu.svg',
+      descKey: 'channels.descFeishu',
+    },
     {
       id: 'msteams',
       name: 'MS Teams',
       icon: '/icons/msteams.svg',
-      description: 'Microsoft Teams 通道',
+      descKey: 'channels.descMSTeams',
     },
-    { id: 'nostr', name: 'Nostr', icon: '/icons/nostr.svg', description: 'Nostr 协议通道' },
+    { id: 'nostr', name: 'Nostr', icon: '/icons/nostr.svg', descKey: 'channels.descNostr' },
   ]
 
   // 每个通道的配置字段定义
@@ -110,27 +119,27 @@
         key: 'botToken',
         label: 'Bot Token',
         type: 'password',
-        placeholder: '从 @BotFather 获取',
+        placeholder: 'channels.placeholderBotFather',
         required: true,
       },
       {
         key: 'dmPolicy',
-        label: 'DM 策略',
+        label: 'channels.labelDmPolicy',
         type: 'select',
         options: ['open', 'pairing', 'allowlist', 'disabled'],
-        placeholder: '选择私信策略',
+        placeholder: 'channels.placeholderDmPolicy',
       },
       {
         key: 'allowFrom',
-        label: '允许的用户 ID',
+        label: 'channels.labelAllowedUserIds',
         type: 'textarea',
-        placeholder: '每行一个用户 ID 或逗号分隔',
+        placeholder: 'channels.placeholderOnePerLine',
       },
       {
         key: 'groups',
-        label: '允许的群组 ID',
+        label: 'channels.labelAllowedGroupIds',
         type: 'textarea',
-        placeholder: '每行一个群组 ID 或逗号分隔',
+        placeholder: 'channels.placeholderOnePerLine',
       },
     ],
     discord: [
@@ -149,17 +158,22 @@
       },
       {
         key: 'dmPolicy',
-        label: 'DM 策略',
+        label: 'channels.labelDmPolicy',
         type: 'select',
         options: ['open', 'pairing', 'allowlist', 'disabled'],
       },
       {
         key: 'allowFrom',
-        label: '允许的用户 ID',
+        label: 'channels.labelAllowedUserIds',
         type: 'textarea',
-        placeholder: '每行一个用户 ID',
+        placeholder: 'channels.placeholderOnePerLine',
       },
-      { key: 'channels', label: '允许的频道 ID', type: 'textarea', placeholder: '每行一个频道 ID' },
+      {
+        key: 'channels',
+        label: 'channels.labelAllowedChannelIds',
+        type: 'textarea',
+        placeholder: 'channels.placeholderOnePerLine',
+      },
     ],
     slack: [
       {
@@ -178,15 +192,15 @@
       },
       {
         key: 'dmPolicy',
-        label: 'DM 策略',
+        label: 'channels.labelDmPolicy',
         type: 'select',
         options: ['open', 'pairing', 'allowlist', 'disabled'],
       },
       {
         key: 'allowFrom',
-        label: '允许的用户 ID',
+        label: 'channels.labelAllowedUserIds',
         type: 'textarea',
-        placeholder: '每行一个用户 ID',
+        placeholder: 'channels.placeholderOnePerLine',
       },
     ],
     whatsapp: [
@@ -210,23 +224,33 @@
         type: 'text',
         placeholder: 'Webhook Verify Token',
       },
-      { key: 'allowFrom', label: '允许的手机号', type: 'textarea', placeholder: '每行一个手机号' },
+      {
+        key: 'allowFrom',
+        label: 'channels.labelAllowedPhones',
+        type: 'textarea',
+        placeholder: 'channels.placeholderOnePhonePerLine',
+      },
     ],
     signal: [
       {
         key: 'phoneNumber',
-        label: '手机号',
+        label: 'channels.labelPhoneNumber',
         type: 'text',
         placeholder: '+8613800138000',
         required: true,
       },
       {
         key: 'signalCliPath',
-        label: 'signal-cli 路径',
+        label: 'channels.labelSignalCliPath',
         type: 'text',
         placeholder: '/usr/local/bin/signal-cli',
       },
-      { key: 'allowFrom', label: '允许的手机号', type: 'textarea', placeholder: '每行一个手机号' },
+      {
+        key: 'allowFrom',
+        label: 'channels.labelAllowedPhones',
+        type: 'textarea',
+        placeholder: 'channels.placeholderOnePhonePerLine',
+      },
     ],
     line: [
       {
@@ -245,9 +269,9 @@
       },
       {
         key: 'allowFrom',
-        label: '允许的用户 ID',
+        label: 'channels.labelAllowedUserIds',
         type: 'textarea',
-        placeholder: '每行一个用户 ID',
+        placeholder: 'channels.placeholderOnePerLine',
       },
     ],
     matrix: [
@@ -260,7 +284,7 @@
       },
       {
         key: 'userId',
-        label: '用户 ID',
+        label: 'channels.labelUserId',
         type: 'text',
         placeholder: '@bot:matrix.org',
         required: true,
@@ -274,43 +298,54 @@
       },
       {
         key: 'allowFrom',
-        label: '允许的用户 ID',
+        label: 'channels.labelAllowedUserIds',
         type: 'textarea',
-        placeholder: '每行一个 Matrix 用户 ID',
+        placeholder: 'channels.placeholderMatrixUserId',
       },
     ],
     irc: [
       {
         key: 'server',
-        label: '服务器',
+        label: 'channels.labelServer',
         type: 'text',
         placeholder: 'irc.libera.chat',
         required: true,
       },
-      { key: 'port', label: '端口', type: 'number', placeholder: '6697' },
-      { key: 'nick', label: '昵称', type: 'text', placeholder: 'openclaw-bot', required: true },
+      { key: 'port', label: 'channels.labelPort', type: 'number', placeholder: '6697' },
+      {
+        key: 'nick',
+        label: 'channels.labelNick',
+        type: 'text',
+        placeholder: 'openclaw-bot',
+        required: true,
+      },
       {
         key: 'channels',
-        label: '频道',
+        label: 'channels.labelIrcChannels',
         type: 'textarea',
-        placeholder: '每行一个频道，如 #general',
+        placeholder: 'channels.placeholderIrcChannel',
       },
-      { key: 'useTls', label: '使用 TLS', type: 'switch' },
+      { key: 'useTls', label: 'channels.labelUseTls', type: 'switch' },
     ],
     googlechat: [
       {
         key: 'serviceAccountKey',
         label: 'Service Account Key (JSON)',
         type: 'textarea',
-        placeholder: '粘贴 Google Cloud Service Account JSON',
+        placeholder: 'channels.placeholderServiceAccountJson',
         required: true,
       },
-      { key: 'allowFrom', label: '允许的用户', type: 'textarea', placeholder: '每行一个邮箱地址' },
+      {
+        key: 'allowFrom',
+        label: 'channels.labelAllowedUsers',
+        type: 'textarea',
+        placeholder: 'channels.placeholderOneEmailPerLine',
+      },
     ],
     mattermost: [
       {
         key: 'serverUrl',
-        label: '服务器 URL',
+        label: 'channels.labelServerUrl',
         type: 'text',
         placeholder: 'https://mattermost.example.com',
         required: true,
@@ -322,24 +357,40 @@
         placeholder: 'Mattermost Bot Token',
         required: true,
       },
-      { key: 'allowFrom', label: '允许的用户', type: 'textarea', placeholder: '每行一个用户名' },
+      {
+        key: 'allowFrom',
+        label: 'channels.labelAllowedUsers',
+        type: 'textarea',
+        placeholder: 'channels.placeholderOneUsernamePerLine',
+      },
     ],
     feishu: [
-      { key: 'appId', label: 'App ID', type: 'text', placeholder: '飞书 App ID', required: true },
+      {
+        key: 'appId',
+        label: 'App ID',
+        type: 'text',
+        placeholder: 'channels.placeholderFeishuAppId',
+        required: true,
+      },
       {
         key: 'appSecret',
         label: 'App Secret',
         type: 'password',
-        placeholder: '飞书 App Secret',
+        placeholder: 'channels.placeholderFeishuAppSecret',
         required: true,
       },
       {
         key: 'verificationToken',
         label: 'Verification Token',
         type: 'text',
-        placeholder: '事件订阅验证 Token',
+        placeholder: 'channels.placeholderVerificationToken',
       },
-      { key: 'encryptKey', label: 'Encrypt Key', type: 'password', placeholder: '事件加密密钥' },
+      {
+        key: 'encryptKey',
+        label: 'Encrypt Key',
+        type: 'password',
+        placeholder: 'channels.placeholderEncryptKey',
+      },
     ],
     msteams: [
       {
@@ -356,21 +407,26 @@
         placeholder: 'Microsoft App Password',
         required: true,
       },
-      { key: 'allowFrom', label: '允许的用户', type: 'textarea', placeholder: '每行一个用户 ID' },
+      {
+        key: 'allowFrom',
+        label: 'channels.labelAllowedUsers',
+        type: 'textarea',
+        placeholder: 'channels.placeholderOnePerLine',
+      },
     ],
     nostr: [
       {
         key: 'privateKey',
-        label: '私钥 (nsec)',
+        label: 'channels.labelPrivateKey',
         type: 'password',
         placeholder: 'nsec...',
         required: true,
       },
       {
         key: 'relays',
-        label: '中继列表',
+        label: 'channels.labelRelays',
         type: 'textarea',
-        placeholder: '每行一个 relay URL\nwss://relay.damus.io',
+        placeholder: 'channels.placeholderRelays',
       },
     ],
   }
@@ -488,7 +544,7 @@
 
     configStore.updateChannel(channelId, cfg)
     drawerVisible.value = false
-    ElMessage.success(`${currentChannelName.value} 配置已保存`)
+    ElMessage.success(t('channels.configSaved', { name: currentChannelName.value }))
 
     // 自动测试连通性
     nextTick(() => handleTestChannel(channelId))
@@ -507,32 +563,49 @@
   const msgSending = ref(false)
   const msgResult = ref(null)
 
-  // 各通道目标地址的说明和占位符
+  // 各通道目标地址的说明和占位符（存 i18n key）
   const channelTargetHints = {
     telegram: {
-      placeholder: '用户名或 chat_id',
-      hint: '填写用户名（如 @username）或数字 chat_id。可通过 @userinfobot 获取自己的 chat_id',
+      placeholderKey: 'channels.hintTelegramPlaceholder',
+      hintKey: 'channels.hintTelegram',
     },
-    discord: { placeholder: '频道 ID', hint: '右键频道 → 复制频道 ID（需开启开发者模式）' },
-    slack: { placeholder: '频道名称或 ID', hint: '填写 #channel-name 或频道 ID（如 C01ABCDEF）' },
-    whatsapp: { placeholder: '手机号', hint: '填写完整国际手机号，如 +8613800138000' },
-    signal: { placeholder: '手机号', hint: '填写完整国际手机号，如 +8613800138000' },
-    line: { placeholder: '用户 ID', hint: '填写 LINE 用户 ID（U 开头的字符串）' },
-    matrix: { placeholder: '用户 ID 或房间 ID', hint: '填写 @user:server 或 !roomid:server' },
-    irc: { placeholder: '频道名', hint: '填写 IRC 频道名，如 #general' },
-    googlechat: { placeholder: 'Space ID', hint: '填写 Google Chat Space ID（spaces/XXXXXXX）' },
-    mattermost: { placeholder: '频道名称', hint: '填写频道名称或频道 ID' },
+    discord: { placeholderKey: 'channels.hintDiscordPlaceholder', hintKey: 'channels.hintDiscord' },
+    slack: { placeholderKey: 'channels.hintSlackPlaceholder', hintKey: 'channels.hintSlack' },
+    whatsapp: { placeholderKey: 'channels.hintPhonePlaceholder', hintKey: 'channels.hintPhone' },
+    signal: { placeholderKey: 'channels.hintPhonePlaceholder', hintKey: 'channels.hintPhone' },
+    line: {
+      placeholderKey: 'channels.hintLineUserIdPlaceholder',
+      hintKey: 'channels.hintLineUserId',
+    },
+    matrix: { placeholderKey: 'channels.hintMatrixPlaceholder', hintKey: 'channels.hintMatrix' },
+    irc: {
+      placeholderKey: 'channels.hintIrcChannelPlaceholder',
+      hintKey: 'channels.hintIrcChannel',
+    },
+    googlechat: {
+      placeholderKey: 'channels.hintGoogleChatPlaceholder',
+      hintKey: 'channels.hintGoogleChat',
+    },
+    mattermost: {
+      placeholderKey: 'channels.hintMattermostPlaceholder',
+      hintKey: 'channels.hintMattermost',
+    },
     feishu: {
-      placeholder: 'open_id 或 chat_id',
-      hint: '填写用户 open_id（ou_ 开头）或群聊 chat_id（oc_ 开头）。可在飞书管理后台或 API 调试工具获取',
+      placeholderKey: 'channels.hintFeishuPlaceholder',
+      hintKey: 'channels.hintFeishu',
     },
-    msteams: { placeholder: '用户 ID 或对话 ID', hint: '填写 Teams 用户 ID 或对话 ID' },
-    nostr: { placeholder: 'npub 公钥', hint: '填写目标用户的 npub 公钥' },
+    msteams: { placeholderKey: 'channels.hintMSTeamsPlaceholder', hintKey: 'channels.hintMSTeams' },
+    nostr: { placeholderKey: 'channels.hintNostrPlaceholder', hintKey: 'channels.hintNostr' },
   }
 
-  /** 获取当前通道的目标提示 */
+  /** 获取当前通道的目标提示（已翻译） */
   function getMsgTargetHint() {
-    return channelTargetHints[msgDialogChannel.value] || { placeholder: '目标地址', hint: '' }
+    const entry = channelTargetHints[msgDialogChannel.value]
+    if (!entry) return { placeholder: t('channels.hintDefaultTarget'), hint: '' }
+    return {
+      placeholder: t(entry.placeholderKey),
+      hint: t(entry.hintKey),
+    }
   }
 
   /** 打开发送消息对话框 */
@@ -548,11 +621,11 @@
   async function handleSendTestMsg() {
     const executor = instanceStore.getActiveExecutor()
     if (!executor) {
-      ElMessage.warning('执行器不可用')
+      ElMessage.warning(t('testPanel.executorUnavailable'))
       return
     }
     if (!msgTarget.value) {
-      ElMessage.warning('请输入目标地址')
+      ElMessage.warning(t('channels.msgTargetRequired'))
       return
     }
 
@@ -565,15 +638,18 @@
       const cmd = `openclaw message send --channel ${channel} --target ${JSON.stringify(target)} --message ${JSON.stringify(message)}`
       const result = await executor.exec(cmd, { timeout: 30000 })
       if (result.exitCode === 0) {
-        msgResult.value = { success: true, message: result.stdout || '消息发送成功' }
-        ElMessage.success('测试消息已发送')
+        msgResult.value = { success: true, message: result.stdout || t('channels.msgSendSuccess') }
+        ElMessage.success(t('channels.testMsgSent'))
       } else {
-        msgResult.value = { success: false, message: result.stderr || result.stdout || '发送失败' }
-        ElMessage.error('消息发送失败')
+        msgResult.value = {
+          success: false,
+          message: result.stderr || result.stdout || t('channels.sendFailed'),
+        }
+        ElMessage.error(t('channels.msgSendFailed'))
       }
     } catch (err) {
       msgResult.value = { success: false, message: err.message }
-      ElMessage.error(`发送出错: ${err.message}`)
+      ElMessage.error(t('channels.sendError', { error: err.message }))
     } finally {
       msgSending.value = false
     }
@@ -582,13 +658,13 @@
   /** 测试通道连通性 */
   async function handleTestChannel(channelId) {
     if (!channelTester) {
-      ElMessage.warning('测试模块未加载')
+      ElMessage.warning(t('channels.testModuleNotLoaded'))
       return
     }
 
     const executor = instanceStore.getActiveExecutor()
     if (!executor) {
-      ElMessage.warning('执行器不可用')
+      ElMessage.warning(t('testPanel.executorUnavailable'))
       return
     }
 
@@ -630,7 +706,7 @@
       }
     } catch (err) {
       testStates[channelId].result = { success: false, message: err.message }
-      ElMessage.error(`测试出错: ${err.message}`)
+      ElMessage.error(t('channelTest.testError', { error: err.message }))
     } finally {
       testStates[channelId].testing = false
     }
@@ -641,14 +717,14 @@
   <div class="channels-view">
     <!-- 页面标题 -->
     <div class="page-toolbar">
-      <h3 class="page-heading">通道配置</h3>
+      <h3 class="page-heading">{{ $t('channels.title') }}</h3>
       <div class="toolbar-actions">
         <el-tag v-if="configStore.isDirty" type="warning" size="small" effect="plain">
-          有未保存的修改
+          {{ $t('common.unsavedChanges') }}
         </el-tag>
-        <el-tag type="info" effect="plain"
-          >{{ enabledCount }} / {{ channelList.length }} 已启用</el-tag
-        >
+        <el-tag type="info" effect="plain">{{
+          $t('channels.enabledCount', { enabled: enabledCount, total: channelList.length })
+        }}</el-tag>
       </div>
     </div>
 
@@ -664,8 +740,10 @@
         <div class="channel-header">
           <img class="channel-icon" :src="channel.icon" :alt="channel.name" />
           <div class="channel-info">
-            <span class="channel-name">{{ channel.name }}</span>
-            <span class="channel-desc">{{ channel.description }}</span>
+            <span class="channel-name">{{
+              channel.nameKey ? $t(channel.nameKey) : channel.name
+            }}</span>
+            <span class="channel-desc">{{ $t(channel.descKey) }}</span>
           </div>
           <el-switch
             :model-value="channel.enabled"
@@ -676,7 +754,7 @@
         <div class="channel-footer">
           <div class="channel-footer-tags">
             <el-tag :type="channel.configured ? 'success' : 'info'" size="small" effect="plain">
-              {{ channel.configured ? '已配置' : '未配置' }}
+              {{ channel.configured ? $t('status.configured') : $t('status.notConfigured') }}
             </el-tag>
             <el-tooltip
               v-if="savedTestRecords[channel.id]"
@@ -704,7 +782,7 @@
               size="small"
               @click.stop="openMsgDialog(channel.id)"
             >
-              发消息
+              {{ $t('channels.sendMsg') }}
             </el-button>
             <el-button
               v-if="channel.configured"
@@ -713,11 +791,11 @@
               :loading="testStates[channel.id]?.testing"
               @click.stop="handleTestChannel(channel.id)"
             >
-              测试
+              {{ $t('common.test') }}
             </el-button>
-            <el-button text size="small" type="primary" @click="openConfig(channel)"
-              >配置</el-button
-            >
+            <el-button text size="small" type="primary" @click="openConfig(channel)">{{
+              $t('channels.configure')
+            }}</el-button>
           </div>
         </div>
         <!-- 测试结果 -->
@@ -743,7 +821,7 @@
     <!-- 配置抽屉 -->
     <el-drawer
       v-model="drawerVisible"
-      :title="currentChannelName + ' 配置'"
+      :title="$t('channels.channelConfig', { name: currentChannelName })"
       direction="rtl"
       size="480px"
       destroy-on-close
@@ -753,35 +831,38 @@
           <!-- 密码输入 -->
           <el-form-item
             v-if="field.type === 'password'"
-            :label="field.key === 'botToken' ? field.label : field.label"
+            :label="$t(field.label)"
             :required="field.required"
           >
             <el-input
               v-model="channelForm[field.key]"
               type="password"
               show-password
-              :placeholder="field.placeholder"
+              :placeholder="field.placeholder ? $t(field.placeholder) : ''"
             />
           </el-form-item>
 
           <!-- 文本输入 -->
           <el-form-item
             v-else-if="field.type === 'text'"
-            :label="field.label"
+            :label="$t(field.label)"
             :required="field.required"
           >
-            <el-input v-model="channelForm[field.key]" :placeholder="field.placeholder" />
+            <el-input
+              v-model="channelForm[field.key]"
+              :placeholder="field.placeholder ? $t(field.placeholder) : ''"
+            />
           </el-form-item>
 
           <!-- 数字输入 -->
           <el-form-item
             v-else-if="field.type === 'number'"
-            :label="field.label"
+            :label="$t(field.label)"
             :required="field.required"
           >
             <el-input-number
               v-model="channelForm[field.key]"
-              :placeholder="field.placeholder"
+              :placeholder="field.placeholder ? $t(field.placeholder) : ''"
               style="width: 100%"
             />
           </el-form-item>
@@ -789,12 +870,12 @@
           <!-- 下拉选择 -->
           <el-form-item
             v-else-if="field.type === 'select'"
-            :label="field.label"
+            :label="$t(field.label)"
             :required="field.required"
           >
             <el-select
               v-model="channelForm[field.key]"
-              :placeholder="field.placeholder"
+              :placeholder="field.placeholder ? $t(field.placeholder) : ''"
               style="width: 100%"
             >
               <el-option v-for="opt in field.options" :key="opt" :label="opt" :value="opt" />
@@ -804,25 +885,25 @@
           <!-- 多行文本 -->
           <el-form-item
             v-else-if="field.type === 'textarea'"
-            :label="field.label"
+            :label="$t(field.label)"
             :required="field.required"
           >
             <el-input
               v-model="channelForm[field.key]"
               type="textarea"
               :rows="3"
-              :placeholder="field.placeholder"
+              :placeholder="field.placeholder ? $t(field.placeholder) : ''"
             />
-            <div class="form-tip">逗号或换行分隔多个值</div>
+            <div class="form-tip">{{ $t('channels.separatorHelp') }}</div>
           </el-form-item>
 
           <!-- 开关 -->
-          <el-form-item v-else-if="field.type === 'switch'" :label="field.label">
+          <el-form-item v-else-if="field.type === 'switch'" :label="$t(field.label)">
             <el-switch v-model="channelForm[field.key]" />
           </el-form-item>
         </template>
 
-        <el-empty v-if="currentFields().length === 0" description="该通道暂无可配置项" />
+        <el-empty v-if="currentFields().length === 0" :description="$t('channels.noConfigItems')" />
       </el-form>
 
       <!-- 抽屉内的测试结果 -->
@@ -843,31 +924,38 @@
       />
 
       <template #footer>
-        <el-button @click="drawerVisible = false">取消</el-button>
+        <el-button @click="drawerVisible = false">{{ $t('common.cancel') }}</el-button>
         <el-button
           :loading="testStates[currentChannelId]?.testing"
           @click="handleTestChannel(currentChannelId)"
         >
-          测试连通性
+          {{ $t('channels.testConnectivity') }}
         </el-button>
-        <el-button type="primary" @click="handleSaveConfig">保存配置</el-button>
+        <el-button type="primary" @click="handleSaveConfig">{{
+          $t('channels.saveConfig')
+        }}</el-button>
       </template>
     </el-drawer>
 
     <!-- 发送测试消息对话框 -->
     <el-dialog
       v-model="msgDialogVisible"
-      :title="`通过 ${msgDialogChannel} 发送测试消息`"
+      :title="$t('channels.sendTestMsgTitle', { channel: msgDialogChannel })"
       width="460px"
       destroy-on-close
     >
       <el-form label-position="top">
-        <el-form-item label="目标地址" required>
+        <el-form-item :label="$t('channels.targetAddress')" required>
           <el-input v-model="msgTarget" :placeholder="getMsgTargetHint().placeholder" />
           <div class="form-tip">{{ getMsgTargetHint().hint }}</div>
         </el-form-item>
-        <el-form-item label="消息内容">
-          <el-input v-model="msgContent" type="textarea" :rows="3" placeholder="测试消息内容" />
+        <el-form-item :label="$t('channels.msgContent')">
+          <el-input
+            v-model="msgContent"
+            type="textarea"
+            :rows="3"
+            :placeholder="$t('channels.msgContentPlaceholder')"
+          />
         </el-form-item>
       </el-form>
       <el-alert
@@ -880,14 +968,14 @@
         @close="msgResult = null"
       />
       <template #footer>
-        <el-button @click="msgDialogVisible = false">关闭</el-button>
+        <el-button @click="msgDialogVisible = false">{{ $t('common.close') }}</el-button>
         <el-button
           type="primary"
           :loading="msgSending"
           :disabled="!msgTarget"
           @click="handleSendTestMsg"
         >
-          发送
+          {{ $t('testPanel.send') }}
         </el-button>
       </template>
     </el-dialog>

@@ -65,7 +65,7 @@ class SshExecutor {
 
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
-          reject(new Error('SSH 连接超时'))
+          reject(new Error('SSH connection timed out'))
         }, 20000)
 
         this._client.on('ready', () => {
@@ -109,14 +109,14 @@ class SshExecutor {
           if (this._connected) {
             resolve()
           } else {
-            reject(new Error('SSH 连接失败'))
+            reject(new Error('SSH connection failed'))
           }
         }
       }, 100)
       // 最多等待 20 秒
       setTimeout(() => {
         clearInterval(check)
-        reject(new Error('等待 SSH 连接超时'))
+        reject(new Error('timeout waiting for SSH connection'))
       }, 20000)
     })
   }
@@ -219,7 +219,7 @@ class SshExecutor {
 
       if (options.timeout) {
         setTimeout(() => {
-          reject(new Error(`命令执行超时: ${command}`))
+          reject(new Error(`command timed out: ${command}`))
         }, options.timeout)
       }
     })

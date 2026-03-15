@@ -80,7 +80,7 @@ function httpGet(url, options = {}) {
 
     req.on('timeout', () => {
       req.destroy()
-      reject(new Error('请求超时'))
+      reject(new Error('request timeout'))
     })
 
     req.on('error', (err) => reject(err))
@@ -258,7 +258,7 @@ async function installSkill(slug, executor) {
   eventBus.emit(SkillEvents.INSTALL_PROGRESS, {
     skillName: slug,
     status: 'installing',
-    message: `正在安装技能 ${slug}...`,
+    message: { key: 'mainProcess.skillInstalling', params: { slug } },
   })
 
   try {
@@ -269,7 +269,10 @@ async function installSkill(slug, executor) {
 
     if (result.exitCode === 0) {
       eventBus.emit(SkillEvents.INSTALL_COMPLETE, { skillName: slug })
-      return { success: true, message: `技能 ${slug} 安装成功` }
+      return {
+        success: true,
+        message: { key: 'mainProcess.skillInstallSuccess', params: { slug } },
+      }
     }
 
     // 如果命令不支持，回退到手动方式
@@ -277,7 +280,7 @@ async function installSkill(slug, executor) {
       return await installSkillManual(slug, executor)
     }
 
-    throw new Error(result.stderr || `安装失败，退出码: ${result.exitCode}`)
+    throw new Error(result.stderr || `install failed, exit code: ${result.exitCode}`)
   } catch (err) {
     // 命令不存在时回退到手动安装
     if (err.message && err.message.includes('not found')) {
@@ -288,7 +291,10 @@ async function installSkill(slug, executor) {
       skillName: slug,
       error: err.message,
     })
-    return { success: false, message: `安装失败: ${err.message}` }
+    return {
+      success: false,
+      message: { key: 'mainProcess.skillInstallFailed', params: { error: err.message } },
+    }
   }
 }
 
@@ -303,7 +309,7 @@ async function installSkillManual(slug, executor) {
     eventBus.emit(SkillEvents.INSTALL_PROGRESS, {
       skillName: slug,
       status: 'downloading',
-      message: '正在从 ClawHub 下载技能...',
+      message: { key: 'mainProcess.skillDownloading' },
     })
 
     // 获取技能详情（包含 changelog 作为 README 内容）
@@ -320,13 +326,16 @@ async function installSkillManual(slug, executor) {
     await executor.writeFile(`${skillDir}/SKILL.md`, skillMd)
 
     eventBus.emit(SkillEvents.INSTALL_COMPLETE, { skillName: slug })
-    return { success: true, message: `技能 ${slug} 安装成功` }
+    return { success: true, message: { key: 'mainProcess.skillInstallSuccess', params: { slug } } }
   } catch (err) {
     eventBus.emit(SkillEvents.INSTALL_ERROR, {
       skillName: slug,
       error: err.message,
     })
-    return { success: false, message: `安装失败: ${err.message}` }
+    return {
+      success: false,
+      message: { key: 'mainProcess.skillInstallFailed', params: { error: err.message } },
+    }
   }
 }
 
@@ -366,7 +375,10 @@ async function uninstallSkill(slug, executor) {
     })
 
     if (result.exitCode === 0) {
-      return { success: true, message: `技能 ${slug} 已卸载` }
+      return {
+        success: true,
+        message: { key: 'mainProcess.skillUninstallSuccess', params: { slug } },
+      }
     }
 
     // 回退到手动删除
@@ -374,12 +386,15 @@ async function uninstallSkill(slug, executor) {
       return await uninstallSkillManual(slug, executor)
     }
 
-    throw new Error(result.stderr || `卸载失败，退出码: ${result.exitCode}`)
+    throw new Error(result.stderr || `uninstall failed, exit code: ${result.exitCode}`)
   } catch (err) {
     if (err.message && err.message.includes('not found')) {
       return await uninstallSkillManual(slug, executor)
     }
-    return { success: false, message: `卸载失败: ${err.message}` }
+    return {
+      success: false,
+      message: { key: 'mainProcess.skillUninstallFailed', params: { error: err.message } },
+    }
   }
 }
 
@@ -393,13 +408,19 @@ async function uninstallSkillManual(slug, executor) {
 
     const exists = await executor.exists(skillDir)
     if (!exists) {
-      return { success: true, message: `技能 ${slug} 不存在` }
+      return { success: true, message: { key: 'mainProcess.skillNotExists', params: { slug } } }
     }
 
     await executor.exec(`rm -rf "${skillDir}"`)
-    return { success: true, message: `技能 ${slug} 已卸载` }
+    return {
+      success: true,
+      message: { key: 'mainProcess.skillUninstallSuccess', params: { slug } },
+    }
   } catch (err) {
-    return { success: false, message: `卸载失败: ${err.message}` }
+    return {
+      success: false,
+      message: { key: 'mainProcess.skillUninstallFailed', params: { error: err.message } },
+    }
   }
 }
 
@@ -471,7 +492,7 @@ async function checkSkillUpdates(executor) {
       if (detail && detail.version) {
         updates.push({
           name: slug,
-          currentVersion: '已安装',
+          currentVersion: 'installed',
           latestVersion: detail.version,
           hasUpdate: true,
         })

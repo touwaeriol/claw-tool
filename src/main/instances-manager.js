@@ -50,7 +50,7 @@ async function getEncryptionKey() {
       return key
     }
   } catch (err) {
-    throw new Error(`无法获取加密密钥: ${err.message}`)
+    throw new Error(`failed to get encryption key: ${err.message}`)
   }
 }
 
@@ -79,7 +79,7 @@ async function decryptPassword(encrypted) {
   if (!encrypted) return ''
   const key = await getEncryptionKey()
   const parts = encrypted.split(':')
-  if (parts.length !== 3) throw new Error('加密数据格式错误')
+  if (parts.length !== 3) throw new Error('invalid encrypted data format')
 
   const iv = Buffer.from(parts[0], 'base64')
   const authTag = Buffer.from(parts[1], 'base64')
@@ -165,10 +165,10 @@ async function addInstance(config) {
  * @param {object} updates - 要更新的字段
  */
 async function updateInstance(id, updates) {
-  if (id === 'local') throw new Error('不能修改本地实例')
+  if (id === 'local') throw new Error('cannot modify local instance')
   const instances = await loadInstances()
   const idx = instances.findIndex((i) => i.id === id)
-  if (idx === -1) throw new Error('实例不存在')
+  if (idx === -1) throw new Error('instance not found')
 
   // 如果更新了密码，重新加密
   if (updates.password !== undefined) {
@@ -190,7 +190,7 @@ async function updateInstance(id, updates) {
  * @param {string} id - 实例 ID
  */
 async function deleteInstance(id) {
-  if (id === 'local') throw new Error('不能删除本地实例')
+  if (id === 'local') throw new Error('cannot delete local instance')
   const instances = await loadInstances()
   const filtered = instances.filter((i) => i.id !== id)
   await saveInstances(filtered)
@@ -242,7 +242,7 @@ async function testConnection(config) {
 
     return {
       success: true,
-      message: '连接成功',
+      message: { key: 'instances.sshSuccess' },
       info: {
         system: unameResult.stdout.trim(),
         nodeVersion: nodeResult.exitCode === 0 ? nodeResult.stdout.trim() : null,
@@ -252,7 +252,7 @@ async function testConnection(config) {
   } catch (err) {
     return {
       success: false,
-      message: `连接失败: ${err.message}`,
+      message: { key: 'instances.connectFailed', params: { error: err.message } },
       info: null,
     }
   } finally {

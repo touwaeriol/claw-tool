@@ -4,6 +4,9 @@
    * 包含实例选择器、服务状态指示和全局操作按钮
    */
   import { ref } from 'vue'
+  import { useI18n } from 'vue-i18n'
+
+  const { t } = useI18n()
 
   /* 当前选中的实例 */
   const currentInstance = ref('local')
@@ -29,7 +32,7 @@
       <el-select
         v-model="currentInstance"
         class="instance-selector"
-        placeholder="选择实例"
+        :placeholder="t('topbar.selectInstance')"
         size="default"
       >
         <el-option v-for="inst in instances" :key="inst.id" :label="inst.label" :value="inst.id">
@@ -53,7 +56,9 @@
           class="status-dot"
           :class="serviceRunning ? 'status-dot--running' : 'status-dot--stopped'"
         />
-        <span class="status-text">{{ serviceRunning ? '运行中' : '已停止' }}</span>
+        <span class="status-text">{{
+          serviceRunning ? t('topbar.running') : t('topbar.stopped')
+        }}</span>
       </div>
 
       <!-- 通知按钮 -->

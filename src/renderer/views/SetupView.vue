@@ -6,22 +6,24 @@
    */
   import { ref, computed, onMounted, watch } from 'vue'
   import { useRouter } from 'vue-router'
+  import { useI18n } from 'vue-i18n'
   import { useAppStore } from '../stores/app.js'
   import { ElMessage } from 'element-plus'
   import { getBackend } from '../utils/nw-bridge'
 
   const router = useRouter()
   const appStore = useAppStore()
+  const { t } = useI18n()
 
   /* 当前步骤（0-3） */
   const currentStep = ref(0)
 
   /* 各步骤状态 */
   const steps = ref([
-    { status: 'pending', message: '等待检测...' },
-    { status: 'pending', message: '等待安装...' },
-    { status: 'pending', message: '等待安装...' },
-    { status: 'pending', message: '准备就绪' },
+    { status: 'pending', message: t('setup.waitingDetect') },
+    { status: 'pending', message: t('setup.waitingInstall') },
+    { status: 'pending', message: t('setup.waitingInstall') },
+    { status: 'pending', message: t('setup.ready') },
   ])
 
   /* 环境检测结果 */
@@ -41,6 +43,12 @@
   /* 是否正在执行操作 */
   const isProcessing = ref(false)
 
+  /* OpenClaw 安装子步骤状态 */
+  const ocInstallStep = ref(0) // 0~3
+  const ocInstallStatus = ref('idle') // idle | running | success | error | cancelled
+  const ocInstallMessage = ref('')
+  const ocInstallAbort = ref(null) // AbortController
+
   /* Node.js 安装指引 */
   const nodeInstallGuide = ref(null)
 
@@ -56,7 +64,12 @@
   const nodeInstallerPath = ref('')
 
   /* 步骤标题 */
-  const stepTitles = ['环境检测', '安装 Node.js', '安装 OpenClaw', '完成']
+  const stepTitles = computed(() => [
+    t('setup.envCheck'),
+    t('setup.installNode'),
+    t('setup.installOpenClaw'),
+    t('setup.complete'),
+  ])
 
   /* 当前步骤是否可以继续 */
   const canProceed = computed(() => {
@@ -77,7 +90,10 @@
 
   /* 添加日志行 */
   function addLog(message) {
-    installLog.value.push(message)
+    // 支持 { key, params } 结构的 i18n 消息
+    const text =
+      typeof message === 'object' && message.key ? t(message.key, message.params) : message
+    installLog.value.push(text)
   }
 
   /* 开始环境检测 */
@@ -87,13 +103,13 @@
 
     isProcessing.value = true
     steps.value[0].status = 'running'
-    steps.value[0].message = '正在检测环境...'
+    steps.value[0].message = t('setup.detecting')
     installLog.value = []
 
     if (!executor || !installer) {
       addLog('[提示] 非 NW.js 环境，使用模拟数据')
       steps.value[0].status = 'success'
-      steps.value[0].message = '检测完成（模拟）'
+      steps.value[0].message = t('setup.detectDone')
       isProcessing.value = false
       return
     }
@@ -131,16 +147,16 @@
 
       // 更新步骤状态
       steps.value[0].status = 'success'
-      steps.value[0].message = '检测完成'
+      steps.value[0].message = t('setup.detectDone')
 
       // 根据检测结果自动标记已完成步骤
       if (nodeResult.meetsRequirement && npmResult.installed) {
         steps.value[1].status = 'success'
-        steps.value[1].message = `Node.js ${envCheck.value.nodeVersion} 已就绪`
+        steps.value[1].message = `Node.js ${envCheck.value.nodeVersion} ${t('setup.ready')}`
       }
       if (openclawResult.installed) {
         steps.value[2].status = 'success'
-        steps.value[2].message = `OpenClaw ${openclawResult.version} 已安装`
+        steps.value[2].message = `OpenClaw ${openclawResult.version} ${t('status.installed')}`
       }
 
       // 根据检测结果自动跳转到合适的步骤
@@ -186,22 +202,22 @@
       nodeDownloadVersion.value = result.version || ''
       nodeInstallerPath.value = result.installerPath || ''
       nodeDownloadStatus.value = 'downloaded'
-      addLog(`安装包已下载到 ${result.installerPath}`)
+      addLog(t('setup.installerDownloaded', { path: result.installerPath }))
 
       // 2. 打开安装包
       nodeDownloadStatus.value = 'opening'
       const openResult = installer.openNodeInstaller(result.installerPath)
       if (openResult.success) {
         nodeDownloadStatus.value = 'waiting'
-        addLog('已打开安装程序，请在弹出的安装向导中完成安装')
+        addLog(t('setup.installerOpened'))
       } else {
         nodeDownloadStatus.value = 'error'
-        nodeDownloadError.value = `打开安装包失败: ${openResult.error}`
+        nodeDownloadError.value = t('setup.openInstallerFailed', { error: openResult.error })
       }
     } catch (err) {
       nodeDownloadStatus.value = 'error'
       nodeDownloadError.value = err.message
-      addLog(`下载失败: ${err.message}`)
+      addLog(t('setup.downloadFailed', { error: err.message }))
     } finally {
       nodeDownloading.value = false
     }
@@ -224,7 +240,7 @@
     if (!executor || !installer) return
 
     isProcessing.value = true
-    addLog('正在重新检测 Node.js...')
+    addLog(t('setup.recheckingNode'))
 
     const nodeResult = await installer.checkNode(executor)
     envCheck.value.nodeInstalled = nodeResult.installed
@@ -238,13 +254,13 @@
 
     if (nodeResult.meetsRequirement && npmResult.installed) {
       steps.value[1].status = 'success'
-      steps.value[1].message = `Node.js ${envCheck.value.nodeVersion} 已就绪`
-      ElMessage.success('Node.js 检测通过！')
+      steps.value[1].message = `Node.js ${envCheck.value.nodeVersion} ${t('setup.ready')}`
+      ElMessage.success(t('setup.nodeCheckPassed'))
       currentStep.value = 2
     } else if (nodeResult.installed) {
-      ElMessage.warning(`Node.js ${envCheck.value.nodeVersion} 版本过低，需要 >= 22.12.0`)
+      ElMessage.warning(t('setup.nodeTooOld', { version: envCheck.value.nodeVersion }))
     } else {
-      ElMessage.warning('未检测到 Node.js，请先完成安装后再点击检测')
+      ElMessage.warning(t('setup.nodeNotFound'))
     }
 
     isProcessing.value = false
@@ -258,7 +274,7 @@
 
     isProcessing.value = true
     steps.value[1].status = 'running'
-    steps.value[1].message = '正在安装 Node.js...'
+    steps.value[1].message = t('setup.installingNode')
 
     const result = await installer.installNode(executor, method, {
       onLog: (data) => addLog(data.trim()),
@@ -277,55 +293,101 @@
       envCheck.value.npmVersion = npmResult.version ? `v${npmResult.version}` : ''
 
       steps.value[1].status = 'success'
-      steps.value[1].message = `Node.js ${envCheck.value.nodeVersion} 安装成功`
-      ElMessage.success('Node.js 安装成功！')
+      steps.value[1].message = t('setup.nodeInstallSuccess', {
+        version: envCheck.value.nodeVersion,
+      })
+      ElMessage.success(t('setup.nodeInstallSuccessMsg'))
       currentStep.value = 2
     } else {
       steps.value[1].status = 'error'
       steps.value[1].message = result.error
-      ElMessage.error(`Node.js 安装失败: ${result.error}`)
+      ElMessage.error(t('setup.nodeInstallFailed', { error: result.error }))
     }
 
     isProcessing.value = false
   }
 
-  /* 安装 OpenClaw */
+  /* 安装 OpenClaw（带步骤指示 + 取消） */
   async function handleInstallOpenClaw() {
     const executor = getExecutor()
     const installer = getInstaller()
     if (!executor || !installer) return
 
     isProcessing.value = true
+    ocInstallStep.value = 0
+    ocInstallStatus.value = 'running'
+    ocInstallMessage.value = ''
+    installLog.value = []
     steps.value[2].status = 'running'
-    steps.value[2].message = '正在安装 OpenClaw...'
+    steps.value[2].message = t('setup.installingOpenClaw')
+
+    const controller = new AbortController()
+    ocInstallAbort.value = controller
 
     const options = {
       onLog: (data) => addLog(data.trim()),
+      onStep: (step, msg) => {
+        ocInstallStep.value = step
+        ocInstallMessage.value = typeof msg === 'object' && msg.key ? t(msg.key, msg.params) : msg
+      },
+      signal: controller.signal,
     }
     if (npmRegistry.value) {
       options.registry = npmRegistry.value
     }
 
-    const result = await installer.installOpenClaw(executor, options)
+    try {
+      const result = await installer.installOpenClaw(executor, options)
 
-    if (result.success) {
-      envCheck.value.openclawInstalled = true
-      envCheck.value.openclawVersion = result.version || ''
-      appStore.openclawInstalled = true
-      appStore.openclawVersion = result.version
+      if (result.success) {
+        ocInstallStep.value = 3
+        ocInstallStatus.value = 'success'
+        ocInstallMessage.value = t('setup.openclawInstallSuccess', { version: result.version })
+        envCheck.value.openclawInstalled = true
+        envCheck.value.openclawVersion = result.version || ''
+        appStore.openclawInstalled = true
+        appStore.openclawVersion = result.version
 
-      steps.value[2].status = 'success'
-      steps.value[2].message = `OpenClaw ${result.version} 安装成功`
-      ElMessage.success('OpenClaw 安装成功！')
-      currentStep.value = 3
-      steps.value[3].status = 'success'
-    } else {
-      steps.value[2].status = 'error'
-      steps.value[2].message = result.error
-      ElMessage.error(`OpenClaw 安装失败: ${result.error}`)
+        steps.value[2].status = 'success'
+        steps.value[2].message = t('setup.openclawInstallSuccess', { version: result.version })
+        ElMessage.success(t('setup.openclawInstallSuccessMsg'))
+        currentStep.value = 3
+        steps.value[3].status = 'success'
+      } else if (controller.signal.aborted) {
+        ocInstallStatus.value = 'cancelled'
+        ocInstallMessage.value = t('setup.installCancelled')
+        steps.value[2].status = 'error'
+        steps.value[2].message = t('setup.installCancelled')
+      } else {
+        ocInstallStatus.value = 'error'
+        ocInstallMessage.value = result.error || t('setup.installFailed')
+        steps.value[2].status = 'error'
+        steps.value[2].message = result.error
+        ElMessage.error(t('setup.openclawInstallFailed', { error: result.error }))
+      }
+    } catch (err) {
+      if (controller.signal.aborted) {
+        ocInstallStatus.value = 'cancelled'
+        ocInstallMessage.value = t('setup.installCancelled')
+        steps.value[2].status = 'error'
+        steps.value[2].message = t('setup.installCancelled')
+      } else {
+        ocInstallStatus.value = 'error'
+        ocInstallMessage.value = err.message
+        steps.value[2].status = 'error'
+        steps.value[2].message = err.message
+        ElMessage.error(t('setup.openclawInstallFailed', { error: err.message }))
+      }
+    } finally {
+      isProcessing.value = false
     }
+  }
 
-    isProcessing.value = false
+  /* 取消安装 OpenClaw */
+  function cancelInstallOpenClaw() {
+    if (ocInstallAbort.value) {
+      ocInstallAbort.value.abort()
+    }
   }
 
   /* 下一步 */
@@ -349,7 +411,7 @@
 
     if (executor && installer && envCheck.value.openclawInstalled) {
       isProcessing.value = true
-      addLog('正在运行 OpenClaw 环境诊断...')
+      addLog(t('setup.runningOnboard'))
       await installer.runOnboard(executor)
       isProcessing.value = false
     }
@@ -393,8 +455,8 @@
         <div class="setup-logo">
           <el-icon :size="48" color="var(--ct-primary)"><ElIconMonitor /></el-icon>
         </div>
-        <h1 class="setup-title">欢迎使用 Claw Tool</h1>
-        <p class="setup-subtitle">OpenClaw 桌面管理工具 - 只需几步即可开始</p>
+        <h1 class="setup-title">{{ $t('setup.welcome') }}</h1>
+        <p class="setup-subtitle">{{ $t('setup.subtitle') }}</p>
       </div>
 
       <!-- 步骤指示器 -->
@@ -417,7 +479,9 @@
               </el-icon>
               <div class="check-info">
                 <span class="check-label">Node.js</span>
-                <span class="check-detail">{{ envCheck.nodeVersion || '未检测' }}</span>
+                <span class="check-detail">{{
+                  envCheck.nodeVersion || $t('setup.notDetected')
+                }}</span>
               </div>
             </div>
             <div class="check-item">
@@ -430,7 +494,9 @@
               </el-icon>
               <div class="check-info">
                 <span class="check-label">npm</span>
-                <span class="check-detail">{{ envCheck.npmVersion || '未检测' }}</span>
+                <span class="check-detail">{{
+                  envCheck.npmVersion || $t('setup.notDetected')
+                }}</span>
               </div>
             </div>
             <div class="check-item">
@@ -445,12 +511,14 @@
               </el-icon>
               <div class="check-info">
                 <span class="check-label">OpenClaw</span>
-                <span class="check-detail">{{ envCheck.openclawVersion || '未检测' }}</span>
+                <span class="check-detail">{{
+                  envCheck.openclawVersion || $t('setup.notDetected')
+                }}</span>
               </div>
             </div>
           </div>
           <el-button type="primary" :loading="isProcessing" @click="startEnvCheck">
-            开始检测
+            {{ $t('setup.startCheck') }}
           </el-button>
         </div>
 
@@ -458,16 +526,16 @@
         <div v-if="currentStep === 1" class="step-panel">
           <div class="install-info">
             <el-icon :size="40" color="var(--ct-warning)"><ElIconDownload /></el-icon>
-            <h3>安装 Node.js</h3>
-            <p>OpenClaw 需要 Node.js >= 22.12.0 运行环境</p>
+            <h3>{{ $t('setup.installNode') }}</h3>
+            <p>{{ $t('setup.nodeRequired') }}</p>
           </div>
 
           <!-- 已安装 -->
           <div v-if="envCheck.nodeMeetsRequirement" class="already-installed">
             <el-result
               icon="success"
-              title="Node.js 已安装"
-              :sub-title="'版本: ' + envCheck.nodeVersion"
+              :title="$t('setup.nodeAlreadyInstalled')"
+              :sub-title="'Version: ' + envCheck.nodeVersion"
             />
           </div>
 
@@ -477,7 +545,7 @@
             <div v-if="nodeDownloadStatus === 'downloading'" class="node-download-section">
               <div class="download-status-text">
                 <el-icon class="is-loading"><ElIconLoading /></el-icon>
-                <span>正在下载 Node.js 安装包...</span>
+                <span>{{ $t('setup.downloadingNode') }}</span>
               </div>
               <el-progress
                 :percentage="nodeDownloadProgress"
@@ -500,15 +568,15 @@
             >
               <el-result
                 icon="info"
-                title="请完成 Node.js 安装"
-                :sub-title="'安装包已下载并打开，请在弹出的安装向导中完成安装，然后点击下方按钮重新检测'"
+                :title="$t('setup.completeNodeInstall')"
+                :sub-title="$t('setup.completeNodeInstallDesc')"
               >
                 <template #extra>
                   <div class="recheck-actions">
                     <el-button type="primary" :loading="isProcessing" @click="recheckNode">
-                      <el-icon><ElIconRefresh /></el-icon> 安装完成，重新检测
+                      <el-icon><ElIconRefresh /></el-icon> {{ $t('setup.recheckNode') }}
                     </el-button>
-                    <el-button @click="autoDownloadNode">重新下载</el-button>
+                    <el-button @click="autoDownloadNode">{{ $t('setup.redownload') }}</el-button>
                   </div>
                 </template>
               </el-result>
@@ -519,9 +587,15 @@
 
             <!-- 下载失败 -->
             <div v-else-if="nodeDownloadStatus === 'error'" class="node-download-section">
-              <el-result icon="error" title="下载失败" :sub-title="nodeDownloadError">
+              <el-result
+                icon="error"
+                :title="$t('setup.downloadFailed2')"
+                :sub-title="nodeDownloadError"
+              >
                 <template #extra>
-                  <el-button type="primary" @click="autoDownloadNode">重试下载</el-button>
+                  <el-button type="primary" @click="autoDownloadNode">{{
+                    $t('setup.retryDownload')
+                  }}</el-button>
                 </template>
               </el-result>
             </div>
@@ -529,7 +603,7 @@
             <!-- 初始状态：自动下载按钮 + 备选方式 -->
             <div v-else class="install-actions">
               <el-button type="primary" :loading="nodeDownloading" @click="autoDownloadNode">
-                下载安装 Node.js
+                {{ $t('setup.downloadInstallNode') }}
               </el-button>
               <template v-if="nodeInstallGuide">
                 <el-button
@@ -557,41 +631,97 @@
         <div v-if="currentStep === 2" class="step-panel">
           <div class="install-info">
             <el-icon :size="40" color="var(--ct-primary)"><ElIconBox /></el-icon>
-            <h3>安装 OpenClaw</h3>
-            <p>将通过 npm 全局安装 OpenClaw</p>
+            <h3>{{ $t('setup.installOpenClaw') }}</h3>
+            <p>{{ $t('setup.willInstallVia') }}</p>
           </div>
+
+          <!-- 安装子步骤指示器 -->
+          <el-steps
+            :active="ocInstallStep"
+            finish-status="success"
+            size="small"
+            style="width: 100%; margin: 16px 0"
+          >
+            <el-step :title="$t('setup.stepDetectEnv')" />
+            <el-step :title="$t('setup.stepDownloadInstall')" />
+            <el-step :title="$t('setup.stepVerify')" />
+          </el-steps>
+
+          <!-- 步骤消息 -->
+          <div v-if="ocInstallMessage" class="oc-install-message">
+            <el-icon v-if="ocInstallStatus === 'running'" class="is-loading"
+              ><ElIconLoading
+            /></el-icon>
+            <el-icon v-else-if="ocInstallStatus === 'success'" color="var(--ct-success)"
+              ><ElIconCircleCheck
+            /></el-icon>
+            <el-icon v-else-if="ocInstallStatus === 'error'" color="var(--ct-danger)"
+              ><ElIconCircleClose
+            /></el-icon>
+            <el-icon v-else-if="ocInstallStatus === 'cancelled'" color="var(--ct-warning)"
+              ><ElIconWarning
+            /></el-icon>
+            <span>{{ ocInstallMessage }}</span>
+          </div>
+
           <div class="install-command">
             <code>npm install -g openclaw@latest</code>
           </div>
           <el-form style="margin: 12px 0; width: 100%">
-            <el-form-item label="npm 镜像源（可选）" label-width="auto">
+            <el-form-item :label="$t('setup.npmRegistry')" label-width="auto">
               <el-input
                 v-model="npmRegistry"
                 placeholder="例如 https://registry.npmmirror.com"
                 clearable
                 style="max-width: 400px"
+                :disabled="ocInstallStatus === 'running'"
               />
             </el-form-item>
           </el-form>
-          <!-- 安装日志 -->
-          <div class="install-log">
-            <div v-for="(line, i) in installLog" :key="i" class="log-line">{{ line }}</div>
-            <div v-if="installLog.length === 0" class="log-placeholder">点击安装开始...</div>
+
+          <!-- 按钮区 -->
+          <div class="oc-install-actions">
+            <el-button
+              v-if="ocInstallStatus === 'running'"
+              type="danger"
+              @click="cancelInstallOpenClaw"
+            >
+              {{ $t('setup.cancelInstall') }}
+            </el-button>
+            <el-button
+              type="primary"
+              :loading="ocInstallStatus === 'running'"
+              :disabled="ocInstallStatus === 'running'"
+              @click="handleInstallOpenClaw"
+            >
+              {{
+                ocInstallStatus === 'error' || ocInstallStatus === 'cancelled'
+                  ? $t('setup.reinstall')
+                  : $t('setup.startInstall')
+              }}
+            </el-button>
           </div>
-          <el-button type="primary" :loading="isProcessing" @click="handleInstallOpenClaw"
-            >开始安装</el-button
-          >
+
+          <!-- 安装日志 -->
+          <div class="install-log" style="margin-top: 16px">
+            <div v-for="(line, i) in installLog" :key="i" class="log-line">{{ line }}</div>
+            <div v-if="installLog.length === 0" class="log-placeholder">
+              {{ $t('setup.clickToInstall') }}
+            </div>
+          </div>
         </div>
 
         <!-- 步骤 3：完成 -->
         <div v-if="currentStep === 3" class="step-panel">
           <el-result
             icon="success"
-            title="安装完成"
-            sub-title="OpenClaw 已准备就绪，点击下方按钮进入主界面"
+            :title="$t('setup.installComplete')"
+            :sub-title="$t('setup.installCompleteDesc')"
           >
             <template #extra>
-              <el-button type="primary" size="large" @click="finishSetup">开始使用</el-button>
+              <el-button type="primary" size="large" @click="finishSetup">{{
+                $t('setup.startUsing')
+              }}</el-button>
             </template>
           </el-result>
         </div>
@@ -599,13 +729,13 @@
 
       <!-- 底部导航按钮 -->
       <div class="setup-footer">
-        <el-button v-if="currentStep > 0 && currentStep < 3" text @click="prevStep"
-          >上一步</el-button
-        >
-        <el-button text @click="skipSetup">跳过向导</el-button>
+        <el-button v-if="currentStep > 0 && currentStep < 3" text @click="prevStep">{{
+          $t('common.prev')
+        }}</el-button>
+        <el-button text @click="skipSetup">{{ $t('setup.skipWizard') }}</el-button>
         <div class="flex-spacer" />
         <el-button v-if="currentStep < 3" type="primary" :disabled="!canProceed" @click="nextStep">
-          下一步
+          {{ $t('common.next') }}
         </el-button>
       </div>
     </div>
@@ -746,6 +876,21 @@
   .install-actions {
     display: flex;
     gap: 12px;
+  }
+
+  .oc-install-message {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--ct-text-regular);
+    margin-bottom: 8px;
+  }
+
+  .oc-install-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
   }
 
   /* Node 自动下载区 */

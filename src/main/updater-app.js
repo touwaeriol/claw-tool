@@ -231,11 +231,83 @@ function directRequest(parsed, headers, timeout, handleResponse, resolve, reject
   req.end()
 }
 
+// 短期缓存：5 分钟内重复检查直接返回上次结果
+const CACHE_TTL = 5 * 60 * 1000
+
 /**
- * 检查 GitHub Releases 最新版本
+ * 快速获取最新版本号（多源竞速，谁先返回用谁）
+ * - jsDelivr Package API：全球 CDN，数据轻量
+ * - GitHub /tags?per_page=1：官方源，比 /releases/latest 轻量得多
+ * @returns {Promise<string|null>} 版本号（如 "0.1.18"）
+ */
+async function fetchLatestVersionFast() {
+  // jsDelivr 源
+  const fromCDN = httpsGet(
+    `https://data.jsdelivr.com/v1/packages/gh/${GITHUB_OWNER}/${GITHUB_REPO}`,
+    { timeout: 8000 },
+  ).then((res) => {
+    if (res.statusCode === 200) {
+      const data = JSON.parse(res.body)
+      if (data.versions && data.versions.length > 0) return data.versions[0].version
+    }
+    return null
+  })
+
+  // GitHub tags 源（只返回 tag 名，不含 release notes / assets 大 JSON）
+  const fromGitHub = httpsGet(
+    `${GITHUB_API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/tags?per_page=1`,
+    { timeout: 10000 },
+  ).then((res) => {
+    if (res.statusCode === 200) {
+      const tags = JSON.parse(res.body)
+      if (tags.length > 0) return extractVersion(tags[0].name)
+    }
+    return null
+  })
+
+  // 竞速：谁先返回有效版本号就用谁
+  try {
+    const version = await Promise.any([
+      fromCDN.then((v) => {
+        if (v) return v
+        throw new Error('CDN 无结果')
+      }),
+      fromGitHub.then((v) => {
+        if (v) return v
+        throw new Error('GitHub 无结果')
+      }),
+    ])
+    return version
+  } catch {
+    // 所有源都失败
+    return null
+  }
+}
+
+/**
+ * 检查 GitHub Releases 最新版本（带短期缓存 + 快速版本检测）
+ * @param {object} [options] - 选项
+ * @param {boolean} [options.forceRefresh] - 强制刷新，忽略缓存
  * @returns {Promise<object|null>} release 信息
  */
-async function checkLatestRelease() {
+async function checkLatestRelease(options = {}) {
+  // 短期缓存：避免频繁重复请求
+  if (!options.forceRefresh && cachedRelease && Date.now() - lastCheckTime < CACHE_TTL) {
+    return cachedRelease
+  }
+
+  const currentVersion = getCurrentAppVersion()
+
+  // 第一步：多源竞速快速获取最新版本号
+  const latestVersion = await fetchLatestVersionFast()
+  if (latestVersion && !isNewerVersion(currentVersion, latestVersion)) {
+    // 已是最新版本，无需再调重量级 API
+    lastCheckTime = Date.now()
+    saveSettings()
+    return cachedRelease
+  }
+
+  // 第二步：有新版本或快速检测失败时，调 GitHub releases API 获取完整信息
   const url = `${GITHUB_API_BASE}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`
 
   try {
@@ -338,11 +410,13 @@ function findPlatformAsset(release) {
 
 /**
  * 检查应用更新
+ * @param {object} [options] - 选项
+ * @param {boolean} [options.forceRefresh] - 强制刷新，忽略缓存
  * @returns {Promise<{hasUpdate: boolean, currentVersion: string, latestVersion: string, releaseNotes: string, asset: object|null}>}
  */
-async function checkForAppUpdate() {
+async function checkForAppUpdate(options = {}) {
   const currentVersion = getCurrentAppVersion()
-  const release = await checkLatestRelease()
+  const release = await checkLatestRelease(options)
 
   if (!release) {
     return { hasUpdate: false, currentVersion, latestVersion: null, releaseNotes: '', asset: null }
@@ -655,64 +729,35 @@ function getCachedRelease() {
   }
 }
 
-/**
- * 根据检查频率获取间隔毫秒数
- */
-function getCheckIntervalMs(freq) {
-  switch (freq) {
-    case 'startup':
-      return 0 // 仅启动时
-    case 'daily':
-      return 24 * 60 * 60 * 1000
-    case 'weekly':
-      return 7 * 24 * 60 * 60 * 1000
-    case 'monthly':
-      return 30 * 24 * 60 * 60 * 1000
-    default:
-      return 24 * 60 * 60 * 1000
-  }
-}
-
-/**
- * 判断是否需要检查（基于上次检查时间和频率）
- */
-function shouldCheck() {
-  if (!_updateSettings.autoCheckApp) return false
-  if (_updateSettings.checkFrequency === 'startup') return lastCheckTime === 0
-  const interval = getCheckIntervalMs(_updateSettings.checkFrequency)
-  return Date.now() - lastCheckTime >= interval
-}
+// 自动检查间隔：5 分钟
+const AUTO_CHECK_INTERVAL = 5 * 60 * 1000
 
 /**
  * 启动自动检查定时器
- * 启动后 10 秒执行首次检查，之后按频率轮询
+ * 启动后 10 秒执行首次检查，之后每 5 分钟检查一次
  */
 function startAutoCheck() {
   stopAutoCheck()
 
+  if (!_updateSettings.autoCheckApp) return
+
   // 延迟 10 秒首次检查
   setTimeout(async () => {
-    if (shouldCheck()) {
+    try {
+      await checkForAppUpdate()
+    } catch (err) {
+      console.warn('[应用更新] 自动检查失败:', err.message)
+    }
+
+    // 每 5 分钟检查一次
+    autoCheckTimer = setInterval(async () => {
+      if (!_updateSettings.autoCheckApp) return
       try {
         await checkForAppUpdate()
       } catch (err) {
         console.warn('[应用更新] 自动检查失败:', err.message)
       }
-    }
-
-    // 设置定时轮询（每小时检查一次是否到时间）
-    autoCheckTimer = setInterval(
-      async () => {
-        if (shouldCheck()) {
-          try {
-            await checkForAppUpdate()
-          } catch (err) {
-            console.warn('[应用更新] 自动检查失败:', err.message)
-          }
-        }
-      },
-      60 * 60 * 1000,
-    ) // 每小时轮询一次
+    }, AUTO_CHECK_INTERVAL)
   }, 10000)
 }
 

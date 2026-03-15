@@ -4,8 +4,11 @@
    * 实时日志流、级别过滤、关键词搜索
    */
   import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { useLogsStore } from '../stores/logs.js'
   import { getBackend } from '../utils/nw-bridge'
+
+  const { t } = useI18n()
 
   const logsStore = useLogsStore()
 
@@ -95,7 +98,7 @@
   <div class="logs-view">
     <!-- 页面标题栏 -->
     <div class="page-toolbar">
-      <h3 class="page-heading">日志</h3>
+      <h3 class="page-heading">{{ $t('logsView.title') }}</h3>
       <div class="toolbar-actions">
         <!-- 级别过滤 -->
         <el-select v-model="logsStore.level" size="small" style="width: 110px">
@@ -111,7 +114,7 @@
         <el-input
           v-model="logsStore.searchKeyword"
           size="small"
-          placeholder="搜索日志..."
+          :placeholder="$t('common.search') + '...'"
           clearable
           prefix-icon="Search"
           style="width: 200px"
@@ -123,21 +126,23 @@
           :type="logsStore.paused ? 'warning' : 'default'"
           @click="logsStore.togglePause()"
         >
-          {{ logsStore.paused ? '恢复' : '暂停' }}
+          {{ logsStore.paused ? $t('service.resume') : $t('service.pause') }}
         </el-button>
 
         <!-- 自动滚动 -->
-        <span class="auto-scroll-label">自动滚动</span>
+        <span class="auto-scroll-label">{{ $t('service.autoScroll') }}</span>
         <el-switch v-model="logsStore.autoScroll" size="small" />
 
         <!-- 清空 -->
-        <el-button size="small" @click="logsStore.clear()">清空</el-button>
+        <el-button size="small" @click="logsStore.clear()">{{ $t('service.clear') }}</el-button>
       </div>
     </div>
 
     <!-- 日志列表 -->
     <div ref="logContainer" class="log-container" contenteditable="false">
-      <div v-if="logsStore.filteredEntries.length === 0" class="log-empty">暂无日志</div>
+      <div v-if="logsStore.filteredEntries.length === 0" class="log-empty">
+        {{ $t('service.noLogs') }}
+      </div>
       <div v-for="entry in logsStore.filteredEntries" :key="entry.id" class="log-line">
         <span class="log-time">{{ formatTime(entry.timestamp) }}</span>
         <span class="log-level" :style="{ color: getLevelColor(entry.level) }">
@@ -150,9 +155,11 @@
     <!-- 底部状态栏 -->
     <div class="log-status-bar">
       <el-tag size="small" effect="plain">
-        共 {{ logsStore.totalCount }} 条，显示 {{ logsStore.filteredCount }} 条
+        {{ logsStore.totalCount }} / {{ logsStore.filteredCount }}
       </el-tag>
-      <el-tag v-if="logsStore.paused" type="warning" size="small" effect="plain"> 已暂停 </el-tag>
+      <el-tag v-if="logsStore.paused" type="warning" size="small" effect="plain">
+        {{ $t('status.processing') }}
+      </el-tag>
     </div>
   </div>
 </template>

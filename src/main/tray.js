@@ -5,6 +5,7 @@
  */
 
 const { eventBus, Events } = require('../shared/ipc')
+const { t, setLocale } = require('../shared/i18n')
 
 let tray = null
 // 当前服务状态：'running' | 'stopped' | 'error'
@@ -32,7 +33,7 @@ function initTray() {
 
   tray = new nw.Tray({
     title: 'Claw Tool',
-    tooltip: 'Claw Tool - OpenClaw 管理工具 (已停止)',
+    tooltip: t('tray.tooltip', { status: t('tray.gatewayStopped') }),
     menu: menu,
   })
 
@@ -73,6 +74,15 @@ function initTray() {
     _minimizeToTray = value
   })
 
+  // 监听语言切换事件，重建托盘菜单
+  eventBus.on(Events.LOCALE_CHANGED, (lang) => {
+    setLocale(lang)
+    if (tray) {
+      tray.menu = buildMenu()
+      tray.tooltip = t('tray.tooltip', { status: getStatusLabel() })
+    }
+  })
+
   // 拦截窗口关闭事件，根据设置决定最小化到托盘还是退出
   setupCloseToTray()
 
@@ -88,7 +98,7 @@ function buildMenu() {
   // 显示/隐藏窗口
   menu.append(
     new nw.MenuItem({
-      label: '显示主窗口',
+      label: t('tray.showWindow'),
       click: () => showWindow(),
     }),
   )
@@ -98,7 +108,7 @@ function buildMenu() {
   // Gateway 状态（只读显示）
   menu.append(
     new nw.MenuItem({
-      label: `Gateway: ${getStatusLabel()}`,
+      label: getStatusLabel(),
       enabled: false,
     }),
   )
@@ -108,7 +118,7 @@ function buildMenu() {
   // Gateway 启停控制
   menu.append(
     new nw.MenuItem({
-      label: '启动 Gateway',
+      label: t('tray.startGateway'),
       click: () => {
         eventBus.emit('tray:start-gateway')
       },
@@ -117,7 +127,7 @@ function buildMenu() {
 
   menu.append(
     new nw.MenuItem({
-      label: '停止 Gateway',
+      label: t('tray.stopGateway'),
       click: () => {
         eventBus.emit('tray:stop-gateway')
       },
@@ -126,7 +136,7 @@ function buildMenu() {
 
   menu.append(
     new nw.MenuItem({
-      label: '重启 Gateway',
+      label: t('tray.restartGateway'),
       click: () => {
         eventBus.emit('tray:restart-gateway')
       },
@@ -139,7 +149,7 @@ function buildMenu() {
     if (openclawUpdateAvailable && openclawLatestVersion) {
       menu.append(
         new nw.MenuItem({
-          label: `OpenClaw 有新版本: ${openclawLatestVersion}`,
+          label: t('tray.openclawUpdate', { version: openclawLatestVersion }),
           click: () => showWindow(),
         }),
       )
@@ -147,7 +157,7 @@ function buildMenu() {
     if (appUpdateAvailable && appLatestVersion) {
       menu.append(
         new nw.MenuItem({
-          label: `Claw Tool 有新版本: ${appLatestVersion}`,
+          label: t('tray.appUpdate', { version: appLatestVersion }),
           click: () => showWindow(),
         }),
       )
@@ -159,7 +169,7 @@ function buildMenu() {
   // 检查更新
   menu.append(
     new nw.MenuItem({
-      label: '检查更新',
+      label: t('tray.checkUpdate'),
       click: () => {
         showWindow()
         eventBus.emit('tray:check-update')
@@ -172,7 +182,7 @@ function buildMenu() {
   // 退出
   menu.append(
     new nw.MenuItem({
-      label: '退出 Claw Tool',
+      label: t('tray.quit'),
       click: () => {
         // 发送退出事件让主进程清理资源
         eventBus.emit(Events.TRAY_QUIT)
@@ -193,11 +203,11 @@ function buildMenu() {
 function getStatusLabel() {
   switch (currentStatus) {
     case 'running':
-      return '运行中'
+      return t('tray.gatewayRunning')
     case 'error':
-      return '异常'
+      return t('tray.gatewayError')
     default:
-      return '已停止'
+      return t('tray.gatewayStopped')
   }
 }
 
@@ -210,8 +220,7 @@ function updateTrayStatus(status) {
   if (!tray) return
 
   // 更新 tooltip
-  const statusLabel = getStatusLabel()
-  tray.tooltip = `Claw Tool - OpenClaw 管理工具 (${statusLabel})`
+  tray.tooltip = t('tray.tooltip', { status: getStatusLabel() })
 
   // 重建菜单以更新状态显示
   tray.menu = buildMenu()

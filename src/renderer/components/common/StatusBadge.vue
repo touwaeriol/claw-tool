@@ -3,27 +3,38 @@
    * 状态指示徽章组件
    * 用于显示服务运行状态、连接状态等
    */
-  defineProps<{
+  import { computed } from 'vue'
+  import { useI18n } from 'vue-i18n'
+
+  const { t } = useI18n()
+
+  const props = defineProps<{
     status: 'running' | 'stopped' | 'error' | 'unknown' | 'connecting'
     label?: string
     showDot?: boolean
   }>()
 
   /* 状态映射 */
-  const statusMap: Record<string, { text: string; type: string; dotClass: string }> = {
-    running: { text: '运行中', type: 'success', dotClass: 'status-dot--running' },
-    stopped: { text: '已停止', type: 'danger', dotClass: 'status-dot--stopped' },
-    error: { text: '错误', type: 'danger', dotClass: 'status-dot--stopped' },
-    unknown: { text: '未知', type: 'info', dotClass: 'status-dot--unknown' },
-    connecting: { text: '连接中', type: 'warning', dotClass: 'status-dot--unknown' },
+  const statusMap: Record<string, { textKey: string; type: string; dotClass: string }> = {
+    running: { textKey: 'status.running', type: 'success', dotClass: 'status-dot--running' },
+    stopped: { textKey: 'status.stopped', type: 'danger', dotClass: 'status-dot--stopped' },
+    error: { textKey: 'status.error', type: 'danger', dotClass: 'status-dot--stopped' },
+    unknown: { textKey: 'status.unknown', type: 'info', dotClass: 'status-dot--unknown' },
+    connecting: { textKey: 'status.connecting', type: 'warning', dotClass: 'status-dot--unknown' },
   }
+
+  const displayText = computed(() => {
+    if (props.label) return props.label
+    const entry = statusMap[props.status]
+    return entry ? t(entry.textKey) : props.status
+  })
 </script>
 
 <template>
   <span class="status-badge">
     <span v-if="showDot !== false" class="status-dot" :class="statusMap[status]?.dotClass" />
     <el-tag :type="(statusMap[status]?.type as any) || 'info'" size="small" effect="dark">
-      {{ label || statusMap[status]?.text || status }}
+      {{ displayText }}
     </el-tag>
   </span>
 </template>

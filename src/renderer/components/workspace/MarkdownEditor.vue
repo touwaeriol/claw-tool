@@ -4,7 +4,10 @@
    * 左右分栏：左侧 textarea 编辑，右侧 Markdown 预览
    */
   import { ref, computed, watch } from 'vue'
+  import { useI18n } from 'vue-i18n'
   import { getBackend } from '../../utils/nw-bridge'
+
+  const { t } = useI18n()
 
   const props = defineProps({
     content: { type: String, default: '' },
@@ -62,7 +65,7 @@
           @click="previewOnly = false"
         >
           <el-icon><ElIconEdit /></el-icon>
-          <span>编辑</span>
+          <span>{{ t('common.edit') }}</span>
         </el-button>
         <el-button
           size="small"
@@ -70,7 +73,7 @@
           @click="previewOnly = true"
         >
           <el-icon><ElIconView /></el-icon>
-          <span>预览</span>
+          <span>Preview</span>
         </el-button>
         <el-button
           v-if="showSave && !readonly"
@@ -80,7 +83,7 @@
           @click="handleSave"
         >
           <el-icon><ElIconCheck /></el-icon>
-          <span>保存</span>
+          <span>{{ t('common.save') }}</span>
         </el-button>
       </div>
     </div>

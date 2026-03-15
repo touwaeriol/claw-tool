@@ -100,7 +100,7 @@ class DaemonManager {
     } else if (this._platform === 'darwin') {
       return this._setAutoStartMacOS(executor, enable)
     }
-    return { success: false, output: '不支持的操作系统' }
+    return { success: false, output: { key: 'service.unsupportedOs' } }
   }
 
   /**
@@ -128,7 +128,7 @@ class DaemonManager {
       const whichResult = await executor.exec('where openclaw')
       const openclawPath = whichResult.stdout.trim().split('\n')[0]
       if (!openclawPath) {
-        return { success: false, output: '未找到 openclaw 命令' }
+        return { success: false, output: { key: 'service.openclawCmdNotFound' } }
       }
       const cmd = `reg add "${regKey}" /v ${valueName} /t REG_SZ /d "\\"${openclawPath}\\" daemon start" /f`
       const result = await executor.exec(cmd)
@@ -163,7 +163,7 @@ class DaemonManager {
       const whichResult = await executor.exec('which openclaw')
       const openclawPath = whichResult.stdout.trim()
       if (!openclawPath) {
-        return { success: false, output: '未找到 openclaw 命令' }
+        return { success: false, output: { key: 'service.openclawCmdNotFound' } }
       }
 
       const plistContent = `<?xml version="1.0" encoding="UTF-8"?>

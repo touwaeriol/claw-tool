@@ -17,12 +17,15 @@ export const MODEL_APIS = [
 
 // ─── AUTH_METHODS ─────────────────────────────────────────────
 export const AUTH_METHODS = {
-  'api-key': { label: 'API Key', description: '使用 API Key 认证' },
-  'oauth-device': { label: 'OAuth Device Flow', description: '设备授权流程（浏览器登录）' },
-  'oauth-pkce': { label: 'OAuth PKCE', description: 'OAuth PKCE 授权流程' },
-  'aws-sdk': { label: 'AWS SDK', description: 'AWS Access Key + Secret Key + Region' },
-  none: { label: '无需认证', description: '无需认证（本地服务）' },
-  'setup-token': { label: 'Setup Token', description: '粘贴 setup-token 认证' },
+  'api-key': { label: 'providers.authApiKey', description: 'providers.authApiKeyDesc' },
+  'oauth-device': {
+    label: 'providers.authOAuthDevice',
+    description: 'providers.authOAuthDeviceDesc',
+  },
+  'oauth-pkce': { label: 'providers.authOAuthPkce', description: 'providers.authOAuthPkceDesc' },
+  'aws-sdk': { label: 'providers.authAwsSdk', description: 'providers.authAwsSdkDesc' },
+  none: { label: 'providers.authNone', description: 'providers.authNoneDesc' },
+  'setup-token': { label: 'providers.authSetupToken', description: 'providers.authSetupTokenDesc' },
 }
 
 // ─── PROVIDER_PRESETS ─────────────────────────────────────────
@@ -36,7 +39,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://api.openai.com/v1',
     authMethod: 'api-key',
     envVar: 'OPENAI_API_KEY',
-    description: 'OpenAI GPT 系列模型',
+    description: 'providers.descOpenAI',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: 'sk-...' },
     ],
@@ -50,7 +53,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://chatgpt.com/backend-api',
     authMethod: 'oauth-device',
     envVar: '',
-    description: 'OpenAI Codex（ChatGPT OAuth 登录）',
+    description: 'providers.descOpenAICodex',
     fields: [],
     defaultModels: ['codex-mini'],
   },
@@ -64,7 +67,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://api.anthropic.com',
     authMethod: 'api-key',
     envVar: 'ANTHROPIC_API_KEY',
-    description: 'Anthropic Claude 系列模型',
+    description: 'providers.descAnthropic',
     fields: [
       {
         key: 'apiKey',
@@ -84,14 +87,14 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://api.anthropic.com',
     authMethod: 'setup-token',
     envVar: 'ANTHROPIC_OAUTH_TOKEN',
-    description: 'Anthropic setup-token 认证',
+    description: 'providers.descAnthropicToken',
     fields: [
       {
         key: 'token',
         label: 'Setup Token',
         type: 'password',
         required: true,
-        placeholder: '粘贴 setup-token...',
+        placeholder: 'providers.placeholderSetupToken',
       },
     ],
     defaultModels: ['claude-opus-4-6', 'claude-sonnet-4-6'],
@@ -106,7 +109,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta',
     authMethod: 'api-key',
     envVar: 'GEMINI_API_KEY',
-    description: 'Google Gemini API',
+    description: 'providers.descGemini',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: 'AI...' },
     ],
@@ -120,7 +123,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: '',
     authMethod: 'oauth-device',
     envVar: '',
-    description: 'Gemini CLI OAuth（非官方流程）',
+    description: 'providers.descGeminiCliOAuth',
     fields: [],
     defaultModels: ['gemini-2.5-pro', 'gemini-2.5-flash'],
   },
@@ -134,7 +137,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: '',
     authMethod: 'oauth-device',
     envVar: 'COPILOT_GITHUB_TOKEN',
-    description: 'GitHub Copilot（设备登录）',
+    description: 'providers.descCopilot',
     fields: [],
     defaultModels: ['claude-sonnet-4', 'gpt-4o'],
   },
@@ -146,11 +149,11 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'http://localhost:1337',
     authMethod: 'none',
     envVar: '',
-    description: 'Copilot 本地代理',
+    description: 'providers.descCopilotProxy',
     fields: [
       {
         key: 'baseUrl',
-        label: '代理地址',
+        label: 'providers.labelProxyAddress',
         type: 'text',
         required: true,
         placeholder: 'http://localhost:1337',
@@ -168,7 +171,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: '',
     authMethod: 'aws-sdk',
     envVar: 'AWS_ACCESS_KEY_ID',
-    description: 'AWS Bedrock 托管模型',
+    description: 'providers.descBedrock',
     fields: [
       {
         key: 'accessKeyId',
@@ -193,16 +196,16 @@ export const PROVIDER_PRESETS = [
   {
     id: 'ollama',
     name: 'Ollama',
-    group: '本地部署',
+    group: 'providers.groupLocalDeploy',
     apiType: 'ollama',
     defaultBaseUrl: 'http://localhost:11434',
     authMethod: 'none',
     envVar: '',
-    description: 'Ollama 本地模型',
+    description: 'providers.descOllama',
     fields: [
       {
         key: 'baseUrl',
-        label: '服务地址',
+        label: 'providers.labelServiceAddress',
         type: 'text',
         required: false,
         placeholder: 'http://localhost:11434',
@@ -220,7 +223,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://api.x.ai/v1',
     authMethod: 'api-key',
     envVar: 'XAI_API_KEY',
-    description: 'xAI Grok 系列模型',
+    description: 'providers.descXai',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: 'xai-...' },
     ],
@@ -236,7 +239,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://api.mistral.ai/v1',
     authMethod: 'api-key',
     envVar: 'MISTRAL_API_KEY',
-    description: 'Mistral AI 模型',
+    description: 'providers.descMistral',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: '' },
     ],
@@ -252,7 +255,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://openrouter.ai/api/v1',
     authMethod: 'api-key',
     envVar: 'OPENROUTER_API_KEY',
-    description: 'OpenRouter 多模型网关',
+    description: 'providers.descOpenRouter',
     fields: [
       {
         key: 'apiKey',
@@ -274,7 +277,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://api.together.xyz/v1',
     authMethod: 'api-key',
     envVar: 'TOGETHER_API_KEY',
-    description: 'Together AI 开源模型',
+    description: 'providers.descTogether',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: '' },
     ],
@@ -290,7 +293,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://router.huggingface.co/v1',
     authMethod: 'api-key',
     envVar: 'HF_TOKEN',
-    description: 'Hugging Face Inference API',
+    description: 'providers.descHuggingFace',
     fields: [
       { key: 'apiKey', label: 'HF Token', type: 'password', required: true, placeholder: 'hf_...' },
     ],
@@ -306,7 +309,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://api.venice.ai/api/v1',
     authMethod: 'api-key',
     envVar: 'VENICE_API_KEY',
-    description: 'Venice AI 隐私优先推理',
+    description: 'providers.descVenice',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: '' },
     ],
@@ -322,12 +325,12 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'http://localhost:4000',
     authMethod: 'api-key',
     envVar: 'LITELLM_API_KEY',
-    description: 'LiteLLM 统一网关（100+ 提供商）',
+    description: 'providers.descLiteLLM',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: false, placeholder: '' },
       {
         key: 'baseUrl',
-        label: '服务地址',
+        label: 'providers.labelServiceAddress',
         type: 'text',
         required: false,
         placeholder: 'http://localhost:4000',
@@ -340,12 +343,12 @@ export const PROVIDER_PRESETS = [
   {
     id: 'cloudflare-ai-gateway',
     name: 'Cloudflare AI Gateway',
-    group: '网关',
+    group: 'providers.groupGateway',
     apiType: 'openai-completions',
     defaultBaseUrl: '',
     authMethod: 'api-key',
     envVar: 'CLOUDFLARE_AI_GATEWAY_API_KEY',
-    description: 'Cloudflare AI Gateway',
+    description: 'providers.descCloudflareAIGateway',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: '' },
       { key: 'accountId', label: 'Account ID', type: 'text', required: true, placeholder: '' },
@@ -358,12 +361,12 @@ export const PROVIDER_PRESETS = [
   {
     id: 'vercel-ai-gateway',
     name: 'Vercel AI Gateway',
-    group: '网关',
+    group: 'providers.groupGateway',
     apiType: 'openai-completions',
     defaultBaseUrl: 'https://ai-gateway.vercel.sh',
     authMethod: 'api-key',
     envVar: 'AI_GATEWAY_API_KEY',
-    description: 'Vercel AI Gateway',
+    description: 'providers.descVercelAIGateway',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: '' },
     ],
@@ -379,7 +382,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://api.minimax.io/anthropic',
     authMethod: 'oauth-device',
     envVar: 'MINIMAX_OAUTH_TOKEN',
-    description: 'MiniMax OAuth 登录',
+    description: 'providers.descMiniMaxOAuth',
     fields: [],
     defaultModels: ['MiniMax-M2.5', 'MiniMax-VL-01'],
   },
@@ -391,7 +394,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://api.minimax.io/anthropic',
     authMethod: 'api-key',
     envVar: 'MINIMAX_API_KEY',
-    description: 'MiniMax M2.5 API Key',
+    description: 'providers.descMiniMaxApiKey',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: '' },
     ],
@@ -405,7 +408,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://api.minimaxi.com/anthropic',
     authMethod: 'api-key',
     envVar: 'MINIMAX_API_KEY',
-    description: 'MiniMax M2.5 中国节点',
+    description: 'providers.descMiniMaxCN',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: '' },
     ],
@@ -419,7 +422,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://api.minimax.io/anthropic',
     authMethod: 'api-key',
     envVar: 'MINIMAX_API_KEY',
-    description: 'MiniMax M2.5 高速版',
+    description: 'providers.descMiniMaxHighspeed',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: '' },
     ],
@@ -435,7 +438,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://api.moonshot.ai/v1',
     authMethod: 'api-key',
     envVar: 'MOONSHOT_API_KEY',
-    description: 'Moonshot Kimi K2.5',
+    description: 'providers.descMoonshot',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: '' },
     ],
@@ -449,7 +452,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://api.moonshot.cn/v1',
     authMethod: 'api-key',
     envVar: 'MOONSHOT_API_KEY',
-    description: 'Moonshot Kimi 中国节点',
+    description: 'providers.descMoonshotCN',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: '' },
     ],
@@ -463,7 +466,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://api.kimi.com/coding/',
     authMethod: 'api-key',
     envVar: 'KIMI_API_KEY',
-    description: 'Kimi Coding API（订阅制）',
+    description: 'providers.descKimiCode',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: '' },
     ],
@@ -473,13 +476,13 @@ export const PROVIDER_PRESETS = [
   // ── 火山引擎 ──
   {
     id: 'volcengine',
-    name: '火山引擎',
-    group: '火山引擎',
+    name: 'providers.nameVolcengine',
+    group: 'providers.groupVolcengine',
     apiType: 'openai-completions',
     defaultBaseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
     authMethod: 'api-key',
     envVar: 'VOLCANO_ENGINE_API_KEY',
-    description: '火山引擎（豆包）',
+    description: 'providers.descVolcengine',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: '' },
     ],
@@ -495,7 +498,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://ark.ap-southeast.bytepluses.com/api/v3',
     authMethod: 'api-key',
     envVar: 'BYTEPLUS_API_KEY',
-    description: 'BytePlus（海外版火山引擎）',
+    description: 'providers.descBytePlus',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: '' },
     ],
@@ -505,13 +508,13 @@ export const PROVIDER_PRESETS = [
   // ── 千帆 ──
   {
     id: 'qianfan',
-    name: '千帆',
-    group: '千帆',
+    name: 'providers.nameQianfan',
+    group: 'providers.groupQianfan',
     apiType: 'openai-completions',
     defaultBaseUrl: 'https://qianfan.baidubce.com/v2',
     authMethod: 'api-key',
     envVar: 'QIANFAN_API_KEY',
-    description: '百度千帆大模型平台',
+    description: 'providers.descQianfan',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: '' },
     ],
@@ -521,13 +524,13 @@ export const PROVIDER_PRESETS = [
   // ── 通义千问 (Qwen) ──
   {
     id: 'qwen',
-    name: '通义千问 (Qwen)',
+    name: 'providers.nameQwen',
     group: 'Qwen',
     apiType: 'openai-completions',
     defaultBaseUrl: 'https://portal.qwen.ai/v1',
     authMethod: 'oauth-device',
     envVar: 'QWEN_OAUTH_TOKEN',
-    description: '通义千问 OAuth 登录',
+    description: 'providers.descQwen',
     fields: [],
     defaultModels: ['qwen3-coder-plus'],
   },
@@ -599,7 +602,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://api.xiaomimimo.com/anthropic',
     authMethod: 'api-key',
     envVar: 'XIAOMI_API_KEY',
-    description: 'Xiaomi MiMo 模型',
+    description: 'providers.descXiaomi',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: '' },
     ],
@@ -615,7 +618,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://api.kilo.ai/api/gateway/',
     authMethod: 'api-key',
     envVar: 'KILOCODE_API_KEY',
-    description: 'Kilo Gateway（OpenRouter 兼容）',
+    description: 'providers.descKilocode',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: '' },
     ],
@@ -631,7 +634,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://api.synthetic.new/anthropic',
     authMethod: 'api-key',
     envVar: 'SYNTHETIC_API_KEY',
-    description: 'Synthetic（Anthropic 兼容多模型）',
+    description: 'providers.descSynthetic',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: '' },
     ],
@@ -647,7 +650,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://opencode.ai/zen/v1',
     authMethod: 'api-key',
     envVar: 'OPENCODE_API_KEY',
-    description: 'OpenCode Zen 多模型代理',
+    description: 'providers.descOpenCodeZen',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true, placeholder: '' },
     ],
@@ -663,7 +666,7 @@ export const PROVIDER_PRESETS = [
     defaultBaseUrl: 'https://api.chutes.ai/v1',
     authMethod: 'oauth-device',
     envVar: 'CHUTES_OAUTH_TOKEN',
-    description: 'Chutes OAuth 登录',
+    description: 'providers.descChutes',
     fields: [],
     defaultModels: [],
   },
@@ -672,21 +675,27 @@ export const PROVIDER_PRESETS = [
   {
     id: 'vllm',
     name: 'vLLM',
-    group: '本地部署',
+    group: 'providers.groupLocalDeploy',
     apiType: 'openai-completions',
     defaultBaseUrl: 'http://localhost:8000/v1',
     authMethod: 'none',
     envVar: '',
-    description: 'vLLM 本地/自托管 OpenAI 兼容服务',
+    description: 'providers.descVLLM',
     fields: [
       {
         key: 'baseUrl',
-        label: '服务地址',
+        label: 'providers.labelServiceAddress',
         type: 'text',
         required: true,
         placeholder: 'http://localhost:8000/v1',
       },
-      { key: 'model', label: '模型名称', type: 'text', required: true, placeholder: '' },
+      {
+        key: 'model',
+        label: 'providers.labelModelName',
+        type: 'text',
+        required: true,
+        placeholder: '',
+      },
     ],
     defaultModels: [],
   },
@@ -694,13 +703,13 @@ export const PROVIDER_PRESETS = [
   // ── Custom ──
   {
     id: 'custom',
-    name: '自定义 Provider',
-    group: '自定义',
+    name: 'providers.nameCustom',
+    group: 'providers.groupCustom',
     apiType: 'openai-completions',
     defaultBaseUrl: '',
     authMethod: 'api-key',
     envVar: '',
-    description: '任意 OpenAI/Anthropic 兼容端点',
+    description: 'providers.descCustom',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: false, placeholder: '' },
       {
@@ -710,7 +719,13 @@ export const PROVIDER_PRESETS = [
         required: true,
         placeholder: 'https://...',
       },
-      { key: 'model', label: '模型名称', type: 'text', required: true, placeholder: '' },
+      {
+        key: 'model',
+        label: 'providers.labelModelName',
+        type: 'text',
+        required: true,
+        placeholder: '',
+      },
     ],
     defaultModels: [],
   },
@@ -731,28 +746,32 @@ export const PROVIDER_GROUPS = [
     providers: ['minimax-portal', 'minimax-api', 'minimax-api-key-cn', 'minimax-api-lightning'],
   },
   { id: 'Moonshot', label: 'Moonshot / Kimi', providers: ['moonshot', 'moonshot-cn', 'kimi-code'] },
-  { id: '火山引擎', label: '火山引擎', providers: ['volcengine'] },
+  { id: '火山引擎', label: 'providers.groupVolcengine', providers: ['volcengine'] },
   { id: 'BytePlus', label: 'BytePlus', providers: ['byteplus'] },
   { id: 'OpenRouter', label: 'OpenRouter', providers: ['openrouter'] },
   { id: 'Together', label: 'Together AI', providers: ['together'] },
   { id: 'Hugging Face', label: 'Hugging Face', providers: ['huggingface'] },
   { id: 'Venice', label: 'Venice AI', providers: ['venice'] },
-  { id: 'Qwen', label: '通义千问 (Qwen)', providers: ['qwen'] },
+  { id: 'Qwen', label: 'providers.nameQwen', providers: ['qwen'] },
   {
     id: 'Z.AI',
     label: 'Z.AI',
     providers: ['zai-coding-global', 'zai-coding-cn', 'zai-global', 'zai-cn'],
   },
-  { id: '千帆', label: '千帆 (Qianfan)', providers: ['qianfan'] },
+  { id: '千帆', label: 'providers.nameQianfanFull', providers: ['qianfan'] },
   { id: 'Xiaomi', label: 'Xiaomi', providers: ['xiaomi'] },
   { id: 'Kilocode', label: 'Kilo Gateway', providers: ['kilocode'] },
   { id: 'Synthetic', label: 'Synthetic', providers: ['synthetic'] },
   { id: 'OpenCode', label: 'OpenCode Zen', providers: ['opencode-zen'] },
   { id: 'Chutes', label: 'Chutes', providers: ['chutes'] },
   { id: 'LiteLLM', label: 'LiteLLM', providers: ['litellm'] },
-  { id: '网关', label: '网关', providers: ['cloudflare-ai-gateway', 'vercel-ai-gateway'] },
-  { id: '本地部署', label: '本地部署', providers: ['ollama', 'vllm'] },
-  { id: '自定义', label: '自定义', providers: ['custom'] },
+  {
+    id: '网关',
+    label: 'providers.groupGateway',
+    providers: ['cloudflare-ai-gateway', 'vercel-ai-gateway'],
+  },
+  { id: '本地部署', label: 'providers.groupLocalDeploy', providers: ['ollama', 'vllm'] },
+  { id: '自定义', label: 'providers.groupCustom', providers: ['custom'] },
 ]
 
 // ─── 辅助函数 ──────────────────────────────────────────────────
