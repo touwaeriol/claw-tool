@@ -303,13 +303,14 @@ function makeWindowsInstaller(arch) {
     console.warn('  警告：未找到 .ico 图标文件，安装包将使用默认图标')
   }
 
+  // 临时文件路径
+  const tmpDir = resolve(BUILD_DIR, '_wix_tmp')
+  ensureDir(tmpDir)
+
   // 生成安装界面 BMP 图片
   const iconPng = resolve(ROOT, '.image', 'claw-tool-icon.png')
   const bitmaps = generateInstallerBitmaps(iconPng, tmpDir)
 
-  // 临时文件路径
-  const tmpDir = resolve(BUILD_DIR, '_wix_tmp')
-  ensureDir(tmpDir)
   const heatWxs = resolve(tmpDir, 'files.wxs')
   const mainWxs = resolve(tmpDir, 'main.wxs')
   const heatObj = resolve(tmpDir, 'files.wixobj')
