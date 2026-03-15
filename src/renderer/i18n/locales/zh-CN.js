@@ -951,5 +951,8 @@ export default {
     updaterSuccess: '更新成功，当前版本: {version}',
     updaterVerifyFailed: '更新完成但无法验证版本',
     updaterFailed: '更新失败: {error}',
+    // process-manager
+    gatewayAlreadyRunning: '检测到 Gateway 已在运行，正在接管状态...',
+    stoppingOrphanGateway: '正在停止残留的 Gateway 进程...',
   },
 }

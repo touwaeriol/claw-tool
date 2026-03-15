@@ -909,5 +909,8 @@ export default {
     updaterSuccess: 'Update successful, current version: {version}',
     updaterVerifyFailed: 'Update complete but version could not be verified',
     updaterFailed: 'Update failed: {error}',
+    // process-manager
+    gatewayAlreadyRunning: 'Gateway is already running, adopting existing state...',
+    stoppingOrphanGateway: 'Stopping orphaned Gateway process...',
   },
 }

@@ -928,5 +928,8 @@ export default {
     updaterSuccess: '업데이트 성공, 현재 버전: {version}',
     updaterVerifyFailed: '업데이트가 완료되었지만 버전을 확인할 수 없습니다',
     updaterFailed: '업데이트에 실패했습니다: {error}',
+    // process-manager
+    gatewayAlreadyRunning: 'Gateway가 이미 실행 중입니다. 기존 상태를 인계합니다...',
+    stoppingOrphanGateway: '잔여 Gateway 프로세스를 중지하는 중...',
   },
 }

@@ -913,5 +913,8 @@ export default {
     updaterSuccess: '更新成功、現在のバージョン: {version}',
     updaterVerifyFailed: '更新完了しましたがバージョンを確認できません',
     updaterFailed: '更新に失敗しました: {error}',
+    // process-manager
+    gatewayAlreadyRunning: 'Gateway は既に実行中です。状態を引き継いでいます...',
+    stoppingOrphanGateway: '残留している Gateway プロセスを停止中...',
   },
 }

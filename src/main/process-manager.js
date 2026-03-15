@@ -5,6 +5,7 @@
  */
 
 const { spawn } = require('child_process')
+const net = require('net')
 const { EventEmitter } = require('events')
 const { eventBus, Events } = require('../shared/ipc')
 
@@ -60,6 +61,31 @@ class ProcessManager extends EventEmitter {
   }
 
   /**
+   * 检查 Gateway 端口是否已被占用
+   * @param {number} [port=18789] - Gateway 端口
+   * @returns {Promise<boolean>} 端口是否已在监听
+   */
+  _isPortInUse(port = 18789) {
+    return new Promise((resolve) => {
+      const socket = new net.Socket()
+      socket.setTimeout(2000)
+      socket.once('connect', () => {
+        socket.destroy()
+        resolve(true)
+      })
+      socket.once('timeout', () => {
+        socket.destroy()
+        resolve(false)
+      })
+      socket.once('error', () => {
+        socket.destroy()
+        resolve(false)
+      })
+      socket.connect(port, '127.0.0.1')
+    })
+  }
+
+  /**
    * 通过 executor 启动 Gateway（前台模式，用于本地）
    * @param {object} executor - 执行器实例
    * @param {object} [options] - 选项
@@ -68,6 +94,25 @@ class ProcessManager extends EventEmitter {
   async startForeground(executor, options = {}) {
     if (this._running) {
       throw new Error('Gateway 已在运行中')
+    }
+
+    // 检查是否有外部 Gateway 已在运行（端口占用检测）
+    const portInUse = await this._isPortInUse()
+    if (portInUse) {
+      // 端口被占用，尝试接管状态
+      this._appendLog('system', { key: 'mainProcess.gatewayAlreadyRunning' })
+      await this.refreshStatus(executor)
+      if (this._running) {
+        return { pid: this._pid, adopted: true }
+      }
+      // refreshStatus 未能确认，尝试先停止再启动
+      this._appendLog('system', { key: 'mainProcess.stoppingOrphanGateway' })
+      try {
+        await executor.exec('openclaw gateway stop', { timeout: 10000 })
+        await new Promise((r) => setTimeout(r, 2000))
+      } catch {
+        /* 停止失败则继续尝试启动 */
+      }
     }
 
     // 使用 executor 的 execStream 方法（LocalExecutor 支持）
@@ -147,6 +192,21 @@ class ProcessManager extends EventEmitter {
    * @param {object} executor - 执行器实例
    */
   async startDaemon(executor) {
+    // 检查是否有 Gateway 已在运行
+    const portInUse = await this._isPortInUse()
+    if (portInUse) {
+      await this.refreshStatus(executor)
+      if (this._running) {
+        return { exitCode: 0, stdout: 'Gateway already running', adopted: true }
+      }
+      try {
+        await executor.exec('openclaw gateway stop', { timeout: 10000 })
+        await new Promise((r) => setTimeout(r, 2000))
+      } catch {
+        /* 停止失败则继续尝试启动 */
+      }
+    }
+
     const result = await executor.exec('openclaw daemon start --allow-unconfigured')
     if (result.exitCode !== 0) {
       throw new Error(`启动 daemon 失败: ${result.stderr || result.stdout}`)
@@ -166,8 +226,12 @@ class ProcessManager extends EventEmitter {
       return this._stopLocalProcess()
     }
 
-    // daemon 模式：通过命令停止
-    const result = await executor.exec('openclaw daemon stop')
+    // 尝试通过 openclaw gateway stop 停止（覆盖 daemon 和外部前台进程）
+    let result = await executor.exec('openclaw gateway stop')
+    if (result.exitCode !== 0) {
+      // 回退到 daemon stop
+      result = await executor.exec('openclaw daemon stop')
+    }
     this._running = false
     this._pid = null
     this._startedAt = null
