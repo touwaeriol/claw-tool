@@ -83,8 +83,10 @@ function initTray() {
     }
   })
 
-  // 拦截窗口关闭事件，根据设置决定最小化到托盘还是退出
-  setupCloseToTray()
+  // 监听渲染端窗口就绪后注册关闭行为
+  eventBus.on('window:ready', () => {
+    setupCloseToTray()
+  })
 
   console.log('[托盘] 系统托盘已初始化')
 }
@@ -257,34 +259,21 @@ function hideWindow() {
 function setupCloseToTray() {
   if (typeof nw === 'undefined') return
 
-  function attachCloseHandler(win) {
-    win.on('close', function () {
-      if (_minimizeToTray) {
-        // 最小化到托盘，后台继续运行
-        hideWindow()
-      } else {
-        // 真正退出应用
-        eventBus.emit(Events.TRAY_QUIT)
-        setTimeout(() => {
-          nw.App.quit()
-        }, 500)
-      }
-    })
-  }
-
   const win = nw.Window.get()
-  if (win) {
-    attachCloseHandler(win)
-  } else {
-    // node-main 在窗口创建前执行，需等窗口就绪后再注册
-    const pollInterval = setInterval(() => {
-      const w = nw.Window.get()
-      if (w) {
-        clearInterval(pollInterval)
-        attachCloseHandler(w)
-      }
-    }, 100)
-  }
+  if (!win) return
+
+  win.on('close', function () {
+    if (_minimizeToTray) {
+      // 最小化到托盘，后台继续运行
+      hideWindow()
+    } else {
+      // 真正退出应用
+      eventBus.emit(Events.TRAY_QUIT)
+      setTimeout(() => {
+        nw.App.quit()
+      }, 500)
+    }
+  })
 }
 
 /**

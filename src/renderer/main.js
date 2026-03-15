@@ -25,6 +25,9 @@ const backend = getBackend()
 if (backend?.eventBus) {
   const minimizeToTray = localStorage.getItem('claw-tool-minimize-to-tray') !== 'false'
   backend.eventBus.emit('settings:minimize-to-tray', minimizeToTray)
+
+  // 通知主进程窗口已就绪，可以注册 close 事件等窗口级操作
+  backend.eventBus.emit('window:ready')
 }
 
 app.mount('#app')
