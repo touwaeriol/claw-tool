@@ -19,7 +19,7 @@ class DaemonManager {
    * @param {object} executor - 执行器实例
    */
   async start(executor) {
-    const result = await executor.exec('openclaw daemon start')
+    const result = await executor.exec('openclaw daemon start --allow-unconfigured')
     return {
       success: result.exitCode === 0,
       output: result.stdout + result.stderr,
@@ -43,7 +43,7 @@ class DaemonManager {
    * @param {object} executor - 执行器实例
    */
   async restart(executor) {
-    const result = await executor.exec('openclaw daemon restart')
+    const result = await executor.exec('openclaw daemon restart --allow-unconfigured')
     return {
       success: result.exitCode === 0,
       output: result.stdout + result.stderr,

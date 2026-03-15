@@ -86,7 +86,9 @@ class ProcessManager extends EventEmitter {
     return new Promise((resolve, reject) => {
       const isWin = process.platform === 'win32'
       const shell = isWin ? 'cmd.exe' : '/bin/sh'
-      const shellArgs = isWin ? ['/c', 'openclaw gateway'] : ['-c', 'openclaw gateway']
+      const shellArgs = isWin
+        ? ['/c', 'openclaw gateway --allow-unconfigured']
+        : ['-c', 'openclaw gateway --allow-unconfigured']
 
       const child = spawn(shell, shellArgs, {
         windowsHide: true,
@@ -145,7 +147,7 @@ class ProcessManager extends EventEmitter {
    * @param {object} executor - 执行器实例
    */
   async startDaemon(executor) {
-    const result = await executor.exec('openclaw daemon start')
+    const result = await executor.exec('openclaw daemon start --allow-unconfigured')
     if (result.exitCode !== 0) {
       throw new Error(`启动 daemon 失败: ${result.stderr || result.stdout}`)
     }

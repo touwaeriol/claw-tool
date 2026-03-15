@@ -213,7 +213,7 @@
         await executor.exec('openclaw daemon stop', { timeout: 15000 })
         ElMessage.success(t('service.gatewayStopped'))
       } else {
-        await executor.exec('openclaw daemon start', { timeout: 15000 })
+        await executor.exec('openclaw daemon start --allow-unconfigured', { timeout: 15000 })
         ElMessage.success(t('service.gatewayStarted'))
       }
       setTimeout(refreshAll, 1500)
@@ -229,7 +229,7 @@
     const executor = getExecutor()
     if (!executor) return
     try {
-      await executor.exec('openclaw daemon restart', { timeout: 20000 })
+      await executor.exec('openclaw daemon restart --allow-unconfigured', { timeout: 20000 })
       ElMessage.success(t('service.gatewayRestarted'))
       setTimeout(refreshAll, 1500)
     } catch (err) {

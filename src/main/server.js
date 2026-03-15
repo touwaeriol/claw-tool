@@ -239,7 +239,7 @@ function createServer() {
   // 服务控制接口
   app.post('/api/service/start', async (req, res) => {
     try {
-      const result = await localExecutor.exec('openclaw daemon start')
+      const result = await localExecutor.exec('openclaw daemon start --allow-unconfigured')
       await processManager.refreshStatus(localExecutor)
       res.json({ ok: result.exitCode === 0, output: result.stdout + result.stderr })
     } catch (err) {
@@ -258,7 +258,7 @@ function createServer() {
 
   app.post('/api/service/restart', async (req, res) => {
     try {
-      const result = await localExecutor.exec('openclaw daemon restart')
+      const result = await localExecutor.exec('openclaw daemon restart --allow-unconfigured')
       await processManager.refreshStatus(localExecutor)
       res.json({ ok: result.exitCode === 0, output: result.stdout + result.stderr })
     } catch (err) {
