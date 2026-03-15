@@ -101,6 +101,26 @@ function getGlobalBinDir() {
 }
 
 /**
+ * 获取 OpenClaw 官方安装脚本可能使用的路径
+ * 覆盖 install.sh / install-cli.sh / install.ps1 的各种安装方式
+ * @returns {string[]} 可能包含 openclaw 的目录列表
+ */
+function getOpenClawSearchPaths() {
+  const home = os.homedir()
+  const paths = []
+
+  // install-cli.sh 默认安装路径: ~/.openclaw/bin
+  const openclawBin = path.join(home, '.openclaw', 'bin')
+  if (fs.existsSync(openclawBin)) paths.push(openclawBin)
+
+  // install.sh / install.ps1 (git 模式): ~/.local/bin
+  const localBin = path.join(home, '.local', 'bin')
+  if (fs.existsSync(localBin)) paths.push(localBin)
+
+  return paths
+}
+
+/**
  * 获取增强的环境变量（PATH + NPM_CONFIG_PREFIX）
  *
  * 策略：
@@ -111,15 +131,30 @@ function getGlobalBinDir() {
  */
 function getEnhancedEnv() {
   const bundled = getBundledNodePaths()
-  if (!bundled.found) return {}
-
-  const systemNodeExists = hasSystemNode()
   const globalBin = getGlobalBinDir()
   const currentPath = process.env.PATH || process.env.Path || ''
+  const openclawPaths = getOpenClawSearchPaths()
 
-  // 内置 node 放在 PATH 末尾，系统 node 优先
-  // globalBin 加入 PATH 保证向后兼容（之前通过内置 node 安装的 openclaw 仍可找到）
-  const newPath = `${currentPath}${path.delimiter}${globalBin}${path.delimiter}${bundled.nodeDir}`
+  // 即使没有 bundled node，也需要将官方安装路径加入 PATH
+  const extraPaths = [globalBin, ...openclawPaths]
+  if (bundled.found) {
+    extraPaths.push(bundled.nodeDir)
+  }
+
+  // 跳过已在 PATH 中的目录，避免重复
+  const existingDirs = new Set(currentPath.split(path.delimiter).map((d) => path.resolve(d)))
+  const newDirs = extraPaths.filter((d) => d && !existingDirs.has(path.resolve(d)))
+
+  if (newDirs.length === 0 && bundled.found) {
+    // 无需修改 PATH，但可能需要设 NPM_CONFIG_PREFIX
+  } else if (newDirs.length === 0) {
+    return {}
+  }
+
+  const newPath =
+    newDirs.length > 0
+      ? `${currentPath}${path.delimiter}${newDirs.join(path.delimiter)}`
+      : currentPath
 
   const env = {
     PATH: newPath,
@@ -128,7 +163,7 @@ function getEnhancedEnv() {
 
   // 仅在没有系统 Node.js 时设置自定义 npm 全局前缀
   // 有系统 Node.js 时让 npm 使用默认位置（通常已在系统 PATH 中）
-  if (!systemNodeExists) {
+  if (!hasSystemNode()) {
     const globalPrefix = getGlobalPrefix()
     env.NPM_CONFIG_PREFIX = globalPrefix
 
@@ -150,5 +185,6 @@ module.exports = {
   hasSystemNode,
   getGlobalPrefix,
   getGlobalBinDir,
+  getOpenClawSearchPaths,
   getEnhancedEnv,
 }
