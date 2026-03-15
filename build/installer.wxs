@@ -19,9 +19,10 @@
            Manufacturer="Claw-Tool"
            UpgradeCode="{{UPGRADE_CODE}}">
 
-    <Package InstallerVersion="200"
+    <Package InstallerVersion="500"
              Compressed="yes"
              InstallScope="perMachine"
+             Platform="x64"
              Description="{{APP_NAME}} Installer"
              Comments="{{APP_NAME}} v{{APP_VERSION}}" />
 
@@ -86,6 +87,9 @@
       </Component>
     </DirectoryRef>
 
+    <!-- 跳过创建系统还原点，加快安装/升级速度 -->
+    <Property Id="MSIFASTINSTALL" Value="1" />
+
     <!-- 应用图标（用于快捷方式和控制面板） -->
     <Icon Id="AppIcon.ico" SourceFile="{{ICON_FILE}}" />
     <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
@@ -127,6 +131,10 @@
     <!-- UI：含目录选择的安装界面（跳过许可协议页面） -->
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
     <UIRef Id="WixUI_InstallDir" />
+
+    <!-- 自定义安装界面图片（由 make-installer.mjs 从应用图标自动生成） -->
+    <WixVariable Id="WixUIDialogBmp" Value="{{DIALOG_BMP}}" />
+    <WixVariable Id="WixUIBannerBmp" Value="{{BANNER_BMP}}" />
 
     <UI>
       <!-- 跳过 License 页面：Welcome → 直接到 InstallDir -->
