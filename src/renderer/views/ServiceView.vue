@@ -3,7 +3,7 @@
    * 服务管理页面
    * 环境检测 + 启停控制 + 实时日志终端
    */
-  import { ref, onMounted, onUnmounted, nextTick, computed, reactive } from 'vue'
+  import { ref, onMounted, onUnmounted, nextTick, computed, reactive, watch } from 'vue'
   import { useI18n } from 'vue-i18n'
   import { useServiceStore } from '../stores/service'
   import { useLogsStore } from '../stores/logs'
@@ -36,6 +36,10 @@
   const runMode = ref('foreground')
   // 自动重启开关
   const autoRestart = ref(true)
+  // 同步 autoRestart 设置给 processManager
+  watch(autoRestart, (val) => {
+    if (processManager) processManager.setAutoRestart(val)
+  })
 
   // ========== 环境检测 ==========
   const env = reactive({
@@ -604,6 +608,9 @@
 
     // 刷新状态
     if (processManager && executor) {
+      // 同步 autoRestart 设置
+      processManager.setAutoRestart(autoRestart.value)
+
       await processManager.refreshStatus(executor)
       serviceStore.updateFromStatus(processManager.status)
 

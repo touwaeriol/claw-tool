@@ -6,6 +6,7 @@
 
 const { spawn } = require('child_process')
 const net = require('net')
+const http = require('http')
 const { EventEmitter } = require('events')
 const { eventBus, Events } = require('../shared/ipc')
 
@@ -46,6 +47,23 @@ class ProcessManager extends EventEmitter {
     this._logBuffer = []
     // 最大日志条目数
     this._maxLogEntries = 5000
+    // 前台模式自动重启（进程异常退出时）
+    this._autoRestart = false
+    // 当前 executor 引用（用于自动重启）
+    this._executor = null
+    // 启动选项引用（用于自动重启）
+    this._startOptions = null
+    // 是否正在执行用户请求的停止（区分主动停止和异常退出）
+    this._stopping = false
+    // 指数退避：初始延迟 1s，最大 60s（对齐 systemd/Docker 策略）
+    this._restartBaseDelay = 1000
+    this._restartMaxDelay = 60000
+    // 连续崩溃计数
+    this._crashCount = 0
+    // 运行超过此时间视为稳定，重置崩溃计数（对齐 PM2 min_uptime）
+    this._stableThreshold = 30000
+    // 崩溃窗口：60 秒内最多重启 5 次（对齐 systemd StartLimitBurst）
+    this._maxCrashesInWindow = 5
   }
 
   /**
@@ -58,6 +76,21 @@ class ProcessManager extends EventEmitter {
       startedAt: this._startedAt,
       uptime: this._startedAt ? Math.floor((Date.now() - this._startedAt) / 1000) : 0,
     }
+  }
+
+  /**
+   * 设置前台模式自动重启
+   * @param {boolean} enabled
+   */
+  setAutoRestart(enabled) {
+    this._autoRestart = enabled
+  }
+
+  /**
+   * 获取自动重启状态
+   */
+  get autoRestart() {
+    return this._autoRestart
   }
 
   /**
@@ -100,13 +133,13 @@ class ProcessManager extends EventEmitter {
     const portInUse = await this._isPortInUse()
     if (portInUse) {
       // 端口被占用，尝试接管状态
-      this._appendLog('system', { key: 'mainProcess.gatewayAlreadyRunning' })
+      this._appendLog('system', '检测到 Gateway 端口已被占用，尝试接管...')
       await this.refreshStatus(executor)
       if (this._running) {
         return { pid: this._pid, adopted: true }
       }
       // refreshStatus 未能确认，尝试先停止再启动
-      this._appendLog('system', { key: 'mainProcess.stoppingOrphanGateway' })
+      this._appendLog('system', '尝试停止残留的 Gateway 进程...')
       try {
         await executor.exec('openclaw gateway stop', { timeout: 10000 })
         await new Promise((r) => setTimeout(r, 2000))
@@ -144,6 +177,10 @@ class ProcessManager extends EventEmitter {
       this._pid = child.pid
       this._running = true
       this._startedAt = Date.now()
+      this._stopping = false
+      // 保存引用用于自动重启
+      this._executor = executor
+      this._startOptions = options
 
       // 通知状态变化
       this._emitStatus()
@@ -161,11 +198,43 @@ class ProcessManager extends EventEmitter {
       })
 
       child.on('close', (code) => {
+        const wasRunningLongEnough =
+          this._startedAt && Date.now() - this._startedAt > this._stableThreshold
         this._process = null
         this._pid = null
         this._running = false
         this._emitStatus()
         this._appendLog('system', `Gateway 进程已退出，退出码: ${code}`)
+
+        // 自动重启：非主动停止 + 开启了 autoRestart + 异常退出
+        if (!this._stopping && this._autoRestart && code !== 0) {
+          if (wasRunningLongEnough) {
+            this._crashCount = 0
+          }
+          this._crashCount++
+          // 崩溃次数超限，停止重启（对齐 systemd StartLimitBurst）
+          if (this._crashCount > this._maxCrashesInWindow) {
+            this._appendLog('system', `连续崩溃超过 ${this._maxCrashesInWindow} 次，停止自动重启`)
+            this._crashCount = 0
+            return
+          }
+          // 指数退避：1s, 2s, 4s, 8s, 16s, ... 上限 60s
+          const delay = Math.min(
+            this._restartBaseDelay * Math.pow(2, this._crashCount - 1),
+            this._restartMaxDelay,
+          )
+          this._appendLog(
+            'system',
+            `Gateway 异常退出，${Math.round(delay / 1000)} 秒后自动重启 (第 ${this._crashCount} 次)...`,
+          )
+          setTimeout(() => {
+            if (!this._running && !this._stopping && this._autoRestart) {
+              this._startLocalForeground(this._executor, this._startOptions).catch((err) => {
+                this._appendLog('system', `自动重启失败: ${err.message}`)
+              })
+            }
+          }, delay)
+        }
       })
 
       child.on('error', (err) => {
@@ -221,6 +290,9 @@ class ProcessManager extends EventEmitter {
    * @param {object} executor - 执行器实例
    */
   async stop(executor) {
+    this._stopping = true
+    this._crashCount = 0
+
     // 前台模式：直接终止子进程
     if (this._process) {
       return this._stopLocalProcess()
@@ -232,10 +304,23 @@ class ProcessManager extends EventEmitter {
       // 回退到 daemon stop
       result = await executor.exec('openclaw daemon stop')
     }
-    this._running = false
-    this._pid = null
-    this._startedAt = null
-    this._emitStatus()
+
+    // 轮询验证进程已停止（最多等 10 秒，每 500ms 检查一次）
+    for (let i = 0; i < 20; i++) {
+      await new Promise((r) => setTimeout(r, 500))
+      const stillUp = await this._healthCheck()
+      if (!stillUp) break
+    }
+    await this.refreshStatus(executor)
+
+    // 如果 refreshStatus 仍然显示 running，强制标记为 stopped 并警告
+    if (this._running) {
+      this._appendLog('system', '停止命令已执行但进程可能仍在运行，请手动检查')
+      this._running = false
+      this._pid = null
+      this._startedAt = null
+      this._emitStatus()
+    }
     return result
   }
 
@@ -290,24 +375,56 @@ class ProcessManager extends EventEmitter {
   }
 
   /**
-   * 刷新服务状态（通过 openclaw daemon status）
+   * HTTP 健康检查 Gateway 是否响应
+   * @param {number} [port=18789] - Gateway 端口
+   * @param {number} [timeoutMs=3000] - 超时时间
+   * @returns {Promise<boolean>}
+   */
+  _healthCheck(port = 18789, timeoutMs = 3000) {
+    return new Promise((resolve) => {
+      const req = http.get(
+        { hostname: '127.0.0.1', port, path: '/v1/models', timeout: timeoutMs },
+        (res) => {
+          // 任何 HTTP 响应（包括 401/404）都说明 Gateway 在运行
+          res.resume()
+          resolve(true)
+        },
+      )
+      req.on('error', () => resolve(false))
+      req.on('timeout', () => {
+        req.destroy()
+        resolve(false)
+      })
+    })
+  }
+
+  /**
+   * 刷新服务状态
+   * 策略：HTTP 健康检查（主信号） + openclaw daemon status（补充获取 PID）
    * @param {object} executor - 执行器实例
    */
   async refreshStatus(executor) {
     try {
-      const result = await executor.exec('openclaw daemon status', { timeout: 10000 })
-      const output = result.stdout + result.stderr
+      // 1. HTTP 健康检查（最可靠的信号 —— 不依赖 CLI 输出格式）
+      const isHealthy = await this._healthCheck()
 
-      // 解析状态输出
-      const isRunning = output.includes('running') || result.exitCode === 0
-      const pidMatch = output.match(/pid[:\s]+(\d+)/i)
+      // 2. CLI 状态查询（获取 PID 等元数据）
+      let pid = null
+      try {
+        const result = await executor.exec('openclaw daemon status', { timeout: 10000 })
+        const output = result.stdout + result.stderr
+        const pidMatch = output.match(/pid[:\s]+(\d+)/i)
+        pid = pidMatch ? parseInt(pidMatch[1]) : null
+      } catch {
+        /* CLI 不可用时忽略，以健康检查为准 */
+      }
 
-      this._running = isRunning
-      this._pid = pidMatch ? parseInt(pidMatch[1]) : null
+      this._running = isHealthy
+      this._pid = pid
 
-      if (isRunning && !this._startedAt) {
+      if (isHealthy && !this._startedAt) {
         this._startedAt = Date.now()
-      } else if (!isRunning) {
+      } else if (!isHealthy) {
         this._startedAt = null
       }
 
